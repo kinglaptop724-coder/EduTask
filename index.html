@@ -567,6 +567,7 @@ async function initApp(){
   $('urgGrid').innerHTML=Object.entries(URG).map(([k,v],i)=>`<label class="cursor-pointer"><input type="radio" name="urgency" value="${k}" class="peer sr-only" ${i?'':'checked'}><div class="py-2 text-center text-sm font-semibold rounded-xl border peer-checked:text-white" style="border-color:var(--line);--c:${v[1]}">${v[0]}</div></label>`).join('');
   document.addEventListener('change',e=>{if(e.target.name==='urgency')paintUrg()});paintUrg();
   await loadData();
+  checkSession();
   setInterval(()=>{if(!document.hidden&&!document.querySelector('#tab-assign:not(.hidden),#regModal:not(.hidden),#swal,#swBusy'))loadData(true)},30000);
 }
 function paintUrg(){document.querySelectorAll('#urgGrid label').forEach(l=>{const r=l.querySelector('input'),d=l.querySelector('div');d.style.background=r.checked?d.style.getPropertyValue('--c'):'var(--card)'})}
@@ -918,28 +919,77 @@ function renderTeacherPop(){
   box.scrollTop=sc;
 }
 
-/* ===== งานของฉัน: ครูเลือกชื่อตัวเอง (จำไว้ในเครื่อง) แล้วเห็นเฉพาะงานของตน ===== */
-const ME_KEY='edutask_me_v1';
-let me=null,myFlt='open',myQ='';
-try{me=localStorage.getItem(ME_KEY)||null}catch(e){}
-function setMe(id){
-  me=id;myFlt='open';myQ='';
-  try{id?localStorage.setItem(ME_KEY,id):localStorage.removeItem(ME_KEY)}catch(e){}
-  renderMy();window.scrollTo({top:0});
+/* ===== งานของฉัน: ครูเลือกชื่อ + ใส่ PIN (เครื่องจะจำไว้) แล้วเห็นเฉพาะงานของตน ===== */
+const ME_KEY='edutask_me_v1',AUTH_KEY='edutask_auth_v1'; // ME_KEY เป็นของเดิม (ไม่ใช้แล้ว) เก็บชื่อไว้เพื่อลบทิ้ง
+let me=null,myFlt='open',myQ='',pinFor=null,pinInfo=null,pinErr='',pinBusy=false;
+function getAuth(){try{return JSON.parse(localStorage.getItem(AUTH_KEY)||'null')}catch(e){return null}}
+function setAuth(a){try{a?localStorage.setItem(AUTH_KEY,JSON.stringify(a)):localStorage.removeItem(AUTH_KEY)}catch(e){}}
+function authTok(id){const a=getAuth();return a&&a.id===id?String(a.tok||''):''}
+try{localStorage.removeItem(ME_KEY);const a=getAuth();me=a&&a.id&&a.tok?a.id:null}catch(e){}
+function setMe(id){me=id;myFlt='open';myQ='';renderMy();window.scrollTo({top:0})}
+function pickTeacher(id){
+  pinFor=id;pinInfo=null;pinErr='';pinBusy=false;renderMy();window.scrollTo({top:0});
+  gs('api_pinStatus',id).then(i=>{if(pinFor!==id)return;pinInfo=i;renderMy()})
+    .catch(e=>{if(pinFor!==id)return;pinFor=null;renderMy();swal({icon:'error',title:'เปิดหน้า PIN ไม่สำเร็จ',text:errMsg(e)})});
+}
+function cancelPin(){pinFor=null;pinInfo=null;pinErr='';renderMy()}
+async function submitPin(){
+  if(pinBusy||!pinFor||!pinInfo||pinInfo.wait>0)return;
+  const id=pinFor,pin=($('pinIn')||{}).value||'',c2=$('pinIn2');
+  if(!/^\d{4,6}$/.test(pin)){pinErr='PIN ต้องเป็นตัวเลข 4–6 หลัก';renderMy();return}
+  if(!pinInfo.hasPin&&(!c2||c2.value!==pin)){pinErr='PIN สองช่องไม่ตรงกัน';renderMy();return}
+  pinBusy=true;pinErr='';renderMy();
+  try{
+    const r=await gs('api_login',id,pin);
+    setAuth({id,tok:r.token});pinFor=null;pinInfo=null;pinBusy=false;
+    setMe(id);toast(r.created?'ตั้ง PIN เรียบร้อยแล้ว':'เข้าสู่ระบบแล้ว');
+  }catch(e){
+    pinBusy=false;pinErr=errMsg(e);renderMy();
+    gs('api_pinStatus',id).then(i=>{if(pinFor===id){pinInfo=i;renderMy()}}).catch(()=>{});
+  }
+}
+function logoutMe(){
+  const a=getAuth();
+  try{PushUI.disable()}catch(e){} // กันแจ้งเตือนของครูคนเดิมค้างอยู่ในเครื่องที่ใช้ร่วมกัน
+  if(a&&a.tok)gs('api_logout',a.id,a.tok).catch(()=>{});
+  setAuth(null);setMe(null);
+}
+/* เปิดแอปแล้ว ถ้าเซิร์ฟเวอร์ไม่รับ token เดิม (หมดอายุ / แอดมินรีเซ็ต PIN) → กลับไปหน้าเลือกชื่อ */
+function checkSession(){
+  const a=getAuth();if(!a||!me)return;
+  gs('api_checkSession',a.id,a.tok).catch(e=>{if(/เข้าสู่ระบบใหม่/.test(errMsg(e))){setAuth(null);setMe(null);toast('กรุณาใส่ PIN ใหม่')}});
+}
+function drawPin(box,t){
+  const key=[pinFor,pinInfo?pinInfo.hasPin+':'+pinInfo.wait:'-',pinErr,pinBusy].join('|');
+  if(box.dataset.mode==='pin'&&box.dataset.pk===key)return; // รีเฟรชข้อมูลทุก 30 วิ ต้องไม่ล้างตัวเลขที่กำลังพิมพ์
+  box.dataset.mode='pin';box.dataset.pk=key;
+  const ready=!!pinInfo,first=ready&&!pinInfo.hasPin,locked=ready&&pinInfo.wait>0;
+  const f=(id,label,ac)=>`<label class="block text-sm font-semibold mb-1" for="${id}">${label}</label><input id="${id}" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="6" autocomplete="${ac}" class="inp mb-3 text-center tracking-widest" ${pinBusy||locked?'disabled':''} oninput="this.value=this.value.replace(/\\D/g,'')" onkeydown="if(event.key==='Enter')submitPin()">`;
+  box.innerHTML=`<div class="card p-5 md:max-w-md">
+    <div class="flex items-center gap-3 mb-4"><span class="tile font-bold" style="${tbgFlat(t)}">${esc(t.initials)}</span><div class="min-w-0"><b class="block truncate" style="color:var(--ink)">${esc(t.name)}</b><span class="block text-xs truncate">${esc(t.subject)}</span></div></div>
+    ${!ready?'<p class="text-sm">กำลังตรวจสอบ…</p>':`
+    <p class="text-sm mb-3">${first?'ครั้งแรกของคุณ: ตั้ง PIN ตัวเลข 4–6 หลัก ไว้ใช้เข้าดูงานของตัวเอง จำให้ได้ ถ้าลืมให้แจ้งแอดมินรีเซ็ต':'ใส่ PIN ของคุณเพื่อดูงานที่มอบหมาย'}</p>
+    ${f('pinIn',first?'ตั้ง PIN':'PIN',first?'new-password':'current-password')}${first?f('pinIn2','ยืนยัน PIN อีกครั้ง','new-password'):''}
+    ${locked?`<p class="text-sm mb-3" role="alert" style="color:#E5484D">ถูกล็อกชั่วคราว ลองใหม่ในอีก ${Math.ceil(pinInfo.wait/60)} นาที</p>`:''}
+    ${pinErr?`<p class="text-sm mb-3" role="alert" style="color:#E5484D">${esc(pinErr)}</p>`:''}
+    <div class="flex gap-2"><button type="button" class="btn flex-1" onclick="submitPin()" ${pinBusy||locked?'disabled':''}>${pinBusy?'กำลังตรวจสอบ…':first?'ตั้ง PIN และเข้าใช้งาน':'เข้าสู่ระบบ'}</button><button type="button" class="btn2" onclick="cancelPin()" ${pinBusy?'disabled':''}>ย้อนกลับ</button></div>`}
+  </div>`;
+  setTimeout(()=>{const el=$('pinIn');if(el&&!el.disabled)el.focus()},50);
 }
 function renderMyPick(){
   const el=$('myPickList');if(!el)return;
   const q=myQ.trim().toLowerCase().replace(/\s+/g,''),tl=q?TEACHERS.filter(t=>(t.name+t.subject).toLowerCase().replace(/\s+/g,'').includes(q)):TEACHERS;
-  el.innerHTML=tl.map(t=>`<button type="button" onclick="setMe('${t.id}')" class="card p-3.5 flex items-center gap-3 text-left" style="cursor:pointer"><span class="tile font-bold" style="${tbgFlat(t)}">${esc(t.initials)}</span><span class="min-w-0 flex-1"><b class="block truncate" style="color:var(--ink)">${esc(t.name)}</b><span class="block text-xs truncate">${esc(t.subject)}</span></span></button>`).join('')
+  el.innerHTML=tl.map(t=>`<button type="button" onclick="pickTeacher('${t.id}')" class="card p-3.5 flex items-center gap-3 text-left" style="cursor:pointer"><span class="tile font-bold" style="${tbgFlat(t)}">${esc(t.initials)}</span><span class="min-w-0 flex-1"><b class="block truncate" style="color:var(--ink)">${esc(t.name)}</b><span class="block text-xs truncate">${esc(t.subject)}</span></span></button>`).join('')
     ||`<div class="card p-8 text-center text-sm" style="grid-column:1/-1">${TEACHERS.length?'ไม่พบครูที่ตรงกับคำค้นหา':'ยังไม่พบรายชื่อครู'}</div>`;
 }
 function renderMy(){
   const box=$('myBody');if(!box)return;
   const t=TEACHERS.find(x=>x.id===me);
+  if(!t&&pinFor){const pt=TEACHERS.find(x=>x.id===pinFor);if(pt){drawPin(box,pt);return}pinFor=null}
   if(!t){ // ยังไม่ได้เลือกชื่อ → หน้าเลือกชื่อ (สร้างโครงครั้งเดียว กันช่องค้นหาเสียโฟกัสตอนรีเฟรช)
     if(box.dataset.mode!=='pick'){
       box.dataset.mode='pick';
-      box.innerHTML=`<p class="text-sm mb-3">เลือกชื่อของคุณ ระบบจะจำไว้ในเครื่องนี้ และแสดงเฉพาะงานที่มอบหมายให้คุณ</p><input id="myQ" type="search" value="${esc(myQ)}" oninput="myQ=this.value;renderMyPick()" placeholder="ค้นหาชื่อของคุณ" class="inp mb-4 md:max-w-md" aria-label="ค้นหาชื่อของคุณ" autocomplete="off"><div id="myPickList" class="grid gap-3 tlist-scroll" style="grid-template-columns:repeat(auto-fill,minmax(min(100%,260px),1fr))"></div>`;
+      box.innerHTML=`<p class="text-sm mb-3">เลือกชื่อของคุณ แล้วใส่ PIN เพื่อดูงานที่มอบหมายให้คุณ เครื่องนี้จะจำไว้จนกว่าจะกด เปลี่ยนผู้ใช้</p><input id="myQ" type="search" value="${esc(myQ)}" oninput="myQ=this.value;renderMyPick()" placeholder="ค้นหาชื่อของคุณ" class="inp mb-4 md:max-w-md" aria-label="ค้นหาชื่อของคุณ" autocomplete="off"><div id="myPickList" class="grid gap-3 tlist-scroll" style="grid-template-columns:repeat(auto-fill,minmax(min(100%,260px),1fr))"></div>`;
     }
     renderMyPick();return;
   }
@@ -951,7 +1001,7 @@ function renderMy(){
   const sb=(k,l,v,c)=>`<button type="button" onclick="myFlt='${k}';renderMy()" class="tfl ${myFlt===k?'on':''}" aria-pressed="${myFlt===k}"><span class="block text-xs">${l}</span><b class="block text-lg" style="color:${c}">${v}</b></button>`;
   const empty=s.m.length?(myFlt==='open'?'ไม่มีงานค้างแล้ว 🎉':'ไม่มีงานในหมวดนี้'):'ยังไม่มีงานที่มอบหมายให้คุณ';
   box.innerHTML=`<div class="card p-4 mb-4">
-    <div class="flex items-center gap-3"><span class="tile !w-14 !h-14 font-bold" style="${tbgFlat(t)}">${esc(t.initials)}</span><div class="min-w-0 flex-1"><h3 class="text-lg font-bold leading-snug" style="color:var(--ink)">${esc(t.name)}</h3><p class="text-sm">${esc(t.subject)}</p></div><button type="button" class="btn2 !py-1.5 !px-3 !text-xs shrink-0" onclick="setMe(null)">เปลี่ยนผู้ใช้</button></div>
+    <div class="flex items-center gap-3"><span class="tile !w-14 !h-14 font-bold" style="${tbgFlat(t)}">${esc(t.initials)}</span><div class="min-w-0 flex-1"><h3 class="text-lg font-bold leading-snug" style="color:var(--ink)">${esc(t.name)}</h3><p class="text-sm">${esc(t.subject)}</p></div><button type="button" class="btn2 !py-1.5 !px-3 !text-xs shrink-0" onclick="logoutMe()">เปลี่ยนผู้ใช้</button></div>
     <div class="grid grid-cols-4 gap-2 mt-4">${sb('all','ทั้งหมด',s.m.length,'var(--ink)')}${sb('open','ค้างส่ง',s.open.length,'var(--orange)')}${sb('late','เลยกำหนด',late.length,'#E5484D')}${sb('done','เสร็จแล้ว',s.done,'var(--ok)')}</div>
     <div class="mt-4"><div class="flex justify-between text-xs font-semibold mb-1"><span>ความคืบหน้า</span><span style="color:var(--ok)">${s.pc}%</span></div><div class="h-2.5 rounded-full" style="background:var(--mist)"><div class="h-full rounded-full" style="width:${s.pc}%;background:var(--orange)"></div></div></div></div>
     <div class="grid min-[900px]:grid-cols-2 gap-4">${list.length?list.map(j=>taskRow(j,true)).join(''):`<div class="min-[900px]:col-span-2 card p-10 text-center text-sm">${empty}</div>`}</div>`;
@@ -1135,7 +1185,7 @@ var PushUI=(function(){
       return getTok();
     }).then(function(tok){
       if(!tok)throw new Error('ไม่ได้รับโทเคนแจ้งเตือน');
-      return gs('api_registerPush',t,tok).then(function(){store({teacherId:t,token:tok});toast('เปิดแจ้งเตือนแล้ว');badge()});
+      return gs('api_registerPush',t,tok,authTok(t)).then(function(){store({teacherId:t,token:tok});toast('เปิดแจ้งเตือนแล้ว');badge()});
     }).catch(function(e){
       note=(e&&e.message==='denied')?'ยังไม่ได้อนุญาตการแจ้งเตือน ลองกดเปิดอีกครั้งแล้วเลือก อนุญาต':'เปิดแจ้งเตือนไม่สำเร็จ: '+errMsg(e);
     }).then(function(){busy=false;draw()});
@@ -1150,7 +1200,7 @@ var PushUI=(function(){
   function silentSync(){
     var s=saved();
     if(!configured||!supported||!s||Notification.permission!=='granted')return;
-    getTok().then(function(tok){if(tok&&tok!==s.token)return gs('api_registerPush',s.teacherId,tok).then(function(){store({teacherId:s.teacherId,token:tok})})}).catch(function(){});
+    getTok().then(function(tok){if(tok&&tok!==s.token&&authTok(s.teacherId))return gs('api_registerPush',s.teacherId,tok,authTok(s.teacherId)).then(function(){store({teacherId:s.teacherId,token:tok})})}).catch(function(){});
   }
   if('serviceWorker' in navigator){
     navigator.serviceWorker.addEventListener('message',function(e){
