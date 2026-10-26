@@ -295,6 +295,15 @@ select.inp{appearance:none;-webkit-appearance:none;padding-right:40px;background
 #installHelp li:before{content:counter(s);flex-shrink:0;width:26px;height:26px;border-radius:50%;background:var(--blue);color:#fff;font-weight:700;font-size:13px;display:grid;place-items:center;margin-top:1px}
 #installHelp .warn{background:var(--peach);color:var(--ink);border-radius:14px;padding:10px 12px;font-size:13px;line-height:1.6;margin-top:14px}
 @media(max-width:760px){#installHelp{align-items:flex-end;padding:0}}
+/* ===== แจ้งเตือนมือถือ ===== */
+#pushCard:empty{display:none}
+#pushCard .pc{display:flex;align-items:center;gap:12px;padding:14px;margin-bottom:16px;border-radius:20px;background:var(--mist);border:1px solid var(--line)}
+#pushCard .pc .em{font-size:26px;line-height:1;flex-shrink:0}
+#pushCard .pc .tx{flex:1;min-width:0;line-height:1.4}
+#pushCard .pc b{display:block;color:var(--ink);font-size:14px}
+#pushCard .pc .s{display:block;font-size:12px}
+#pushCard .pc .btn,#pushCard .pc .btn2{padding:9px 16px;white-space:nowrap;font-size:13px;flex-shrink:0}
+#pushCard .pn{margin:-6px 0 16px;padding:10px 12px;border-radius:14px;background:var(--peach);color:var(--ink);font-size:13px;line-height:1.6}
 </style>
 </head>
 <body>
@@ -440,6 +449,7 @@ select.inp{appearance:none;-webkit-appearance:none;padding-right:40px;background
     <!-- แท็บงานของฉัน (ครูเลือกชื่อตัวเอง ดูเฉพาะงานของตน) -->
     <section id="tab-my" class="hidden">
       <h2 class="ttl text-3xl sm:text-4xl mb-5">งาน<b>ของฉัน</b></h2>
+      <div id="pushCard"></div>
       <div id="myBody" data-mode=""></div>
     </section>
   </main>
@@ -1029,6 +1039,100 @@ var EduInstall=(function(){
   }
   return{go:go,closeHelp:closeHelp,dismiss:function(){try{localStorage.setItem(KEY,String(Date.now()))}catch(e){}hideBar()}};
 })();
+</script>
+<script>
+/* แจ้งเตือนงานใหม่บนมือถือ (Firebase Cloud Messaging) – แยกจากสคริปต์หลัก
+ * ตั้งค่าใน config.js (window.EDUTASK_FCM) ถ้ายังไม่ตั้ง การ์ดแจ้งเตือนจะไม่แสดง */
+var PushUI=(function(){
+  var C=window.EDUTASK_FCM||{},KEY='edutask_push_v1',FB='10.12.2',msg=null,busy=false,note='';
+  var g=function(i){return document.getElementById(i)};
+  var configured=!!(C.apiKey&&C.projectId&&C.messagingSenderId&&C.appId&&C.vapidKey);
+  var ua=navigator.userAgent||'';
+  var isIOS=/iPad|iPhone|iPod/.test(ua)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
+  var standalone=function(){return (window.matchMedia&&matchMedia('(display-mode: standalone)').matches)||navigator.standalone===true};
+  var supported=('serviceWorker' in navigator)&&('PushManager' in window)&&('Notification' in window)&&/^https?:$/.test(location.protocol);
+  function saved(){try{return JSON.parse(localStorage.getItem(KEY)||'null')}catch(e){return null}}
+  function store(v){try{v?localStorage.setItem(KEY,JSON.stringify(v)):localStorage.removeItem(KEY)}catch(e){}}
+  function loadScript(src){return new Promise(function(ok,no){var s=document.createElement('script');s.src=src;s.onload=ok;s.onerror=function(){no(new Error('โหลดบริการแจ้งเตือนไม่ได้ ตรวจสอบอินเทอร์เน็ต'))};document.head.appendChild(s)})}
+  function getMsg(){
+    if(msg)return Promise.resolve(msg);
+    var p=(window.firebase&&firebase.messaging)?Promise.resolve():
+      loadScript('https://www.gstatic.com/firebasejs/'+FB+'/firebase-app-compat.js').then(function(){return loadScript('https://www.gstatic.com/firebasejs/'+FB+'/firebase-messaging-compat.js')});
+    return p.then(function(){
+      if(!firebase.apps.length)firebase.initializeApp({apiKey:C.apiKey,authDomain:C.projectId+'.firebaseapp.com',projectId:C.projectId,messagingSenderId:C.messagingSenderId,appId:C.appId});
+      msg=firebase.messaging();return msg;
+    });
+  }
+  function getTok(){
+    return Promise.all([getMsg(),navigator.serviceWorker.ready]).then(function(a){
+      return a[0].getToken({vapidKey:C.vapidKey,serviceWorkerRegistration:a[1]});
+    });
+  }
+  function openCount(){
+    try{return tasks.filter(function(j){return j.teacherIds&&j.teacherIds.indexOf(me)>=0&&j.status!=='completed'}).length}catch(e){return 0}
+  }
+  /* ตัวเลขบนไอคอนแอป (เมื่อติดตั้งแล้ว) – อัปเดตทุกครั้งที่เปิดแอป */
+  function badge(){
+    if(!me||!navigator.setAppBadge)return;
+    try{var n=openCount();var r=n>0?navigator.setAppBadge(n):navigator.clearAppBadge();if(r&&r.catch)r.catch(function(){})}catch(e){}
+  }
+  function draw(){
+    var el=g('pushCard');if(!el)return;
+    if(!configured||!me||typeof TEACHERS==='undefined'||!TEACHERS.some(function(t){return t.id===me})){el.innerHTML='';return}
+    var h='';
+    if(isIOS&&!standalone()){
+      h='<div class="pc"><span class="em">🔔</span><div class="tx"><b>รับแจ้งเตือนงานใหม่บน iPhone</b><span class="s">ต้องติดตั้งแอปลงหน้าจอก่อน แล้วเปิดจากไอคอนบนหน้าจอ</span></div><button type="button" class="btn" onclick="EduInstall.go()">วิธีติดตั้ง</button></div>';
+    }else if(supported){
+      var s=saved(),on=Notification.permission==='granted'&&s&&s.teacherId===me;
+      h='<div class="pc"><span class="em">'+(on?'🔔':'🔕')+'</span><div class="tx"><b>แจ้งเตือนงานบนมือถือ</b><span class="s">'+
+        (on?'เปิดอยู่ – จะเด้งเตือนเมื่อมีงานใหม่และเมื่อใกล้ครบกำหนด':'รับแจ้งเตือนเมื่อมีงานมอบหมายให้คุณ แม้ไม่ได้เปิดแอป')+'</span></div>'+
+        (on?'<button type="button" class="btn2" onclick="PushUI.disable()"'+(busy?' disabled':'')+'>ปิด</button>'
+           :'<button type="button" class="btn" onclick="PushUI.enable()"'+(busy?' disabled':'')+'>'+(busy?'กำลังเปิด…':'เปิดแจ้งเตือน')+'</button>')+'</div>';
+      if(Notification.permission==='denied'&&!on)note='เบราว์เซอร์ปิดกั้นการแจ้งเตือนของเว็บนี้ไว้ ให้แตะไอคอนกุญแจ/ข้อมูลเว็บไซต์ข้างช่องที่อยู่เว็บ แล้วเลือก อนุญาตการแจ้งเตือน';
+    }
+    if(note)h+='<div class="pn">'+note.replace(/&/g,'&amp;').replace(/</g,'&lt;')+'</div>';
+    el.innerHTML=h;
+  }
+  function enable(){
+    if(busy||!me||!supported)return;
+    var t=me;busy=true;note='';draw();
+    Notification.requestPermission().then(function(p){
+      if(p!=='granted')throw new Error('denied');
+      return getTok();
+    }).then(function(tok){
+      if(!tok)throw new Error('ไม่ได้รับโทเคนแจ้งเตือน');
+      return gs('api_registerPush',t,tok).then(function(){store({teacherId:t,token:tok});toast('เปิดแจ้งเตือนแล้ว');badge()});
+    }).catch(function(e){
+      note=(e&&e.message==='denied')?'ยังไม่ได้อนุญาตการแจ้งเตือน ลองกดเปิดอีกครั้งแล้วเลือก อนุญาต':'เปิดแจ้งเตือนไม่สำเร็จ: '+errMsg(e);
+    }).then(function(){busy=false;draw()});
+  }
+  function disable(){
+    var s=saved();if(busy)return;busy=true;note='';draw();
+    (s&&s.token?gs('api_unregisterPush',s.token).catch(function(){}):Promise.resolve())
+      .then(function(){return getMsg().then(function(m){return m.deleteToken()}).catch(function(){})})
+      .then(function(){store(null);busy=false;toast('ปิดแจ้งเตือนแล้ว');draw()});
+  }
+  /* เปิดแอปมาแล้ว ถ้าเคยเปิดแจ้งเตือนไว้ → ตรวจว่าโทเคนยังตรงกัน (เปลี่ยนแล้วลงทะเบียนใหม่เงียบ ๆ) */
+  function silentSync(){
+    var s=saved();
+    if(!configured||!supported||!s||Notification.permission!=='granted')return;
+    getTok().then(function(tok){if(tok&&tok!==s.token)return gs('api_registerPush',s.teacherId,tok).then(function(){store({teacherId:s.teacherId,token:tok})})}).catch(function(){});
+  }
+  if('serviceWorker' in navigator){
+    navigator.serviceWorker.addEventListener('message',function(e){
+      var m=e.data||{};
+      if(m.type==='push'){var d=m.data||{};toast((d.title||'แจ้งเตือน')+': '+String(d.body||'').split('\n')[0]);try{loadData(true)}catch(x){}}
+      if(m.type==='go'&&m.tab){try{switchTab('tab-'+m.tab)}catch(x){}}
+    });
+  }
+  window.addEventListener('load',function(){
+    if(/[?&]go=my/.test(location.search))setTimeout(function(){try{switchTab('tab-my')}catch(e){}},400);
+    setTimeout(silentSync,4000);
+  });
+  return{enable:enable,disable:disable,draw:draw,badge:badge};
+})();
+/* วาดการ์ดแจ้งเตือน + อัปเดตตัวเลขบนไอคอน ทุกครั้งที่หน้า "งานของฉัน" ถูกวาดใหม่ */
+if(typeof renderMy==='function'){var _renderMy=renderMy;renderMy=function(){_renderMy.apply(this,arguments);try{PushUI.draw();PushUI.badge()}catch(e){}}}
 </script>
 </body>
 </html>
