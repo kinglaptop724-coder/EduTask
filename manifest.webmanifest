@@ -1,0 +1,20 @@
+{
+  "name": "EduTask – ระบบมอบหมายและติดตามงานครู",
+  "short_name": "EduTask",
+  "description": "ระบบมอบหมายและติดตามงานครู โรงเรียนอนุบาลชุมชนหนองบัวแดง",
+  "lang": "th",
+  "dir": "ltr",
+  "start_url": "./?source=pwa",
+  "scope": "./",
+  "id": "./",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#DCE9FB",
+  "theme_color": "#2E5FBF",
+  "categories": ["education", "productivity"],
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

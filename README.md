@@ -1,0 +1,61 @@
+# EduTask – ระบบมอบหมายและติดตามงานครู
+
+โรงเรียนอนุบาลชุมชนหนองบัวแดง
+
+- **หน้าเว็บ**: `index.html` + `config.js` โฮสต์บน GitHub Pages
+- **ฐานข้อมูล**: Google Sheets + Google Drive ผ่าน Google Apps Script (`apps-script/Code.gs`) เหมือนเดิม
+- หน้าเว็บคุยกับ Apps Script ผ่าน Web App URL (`fetch` แบบ POST) ที่ตั้งไว้ใน `config.js`
+
+```
+index.html            หน้าเว็บทั้งหมด
+config.js             ใส่ URL ของ Apps Script Web App
+manifest.webmanifest  ข้อมูลแอป (ชื่อ สี ไอคอน) สำหรับติดตั้งลงหน้าจอมือถือ
+sw.js                 service worker เก็บไฟล์หน้าเว็บไว้ในเครื่อง
+icons/                ไอคอนแอป (192, 512, maskable, apple-touch, favicon)
+apps-script/Code.gs   โค้ดฝั่งเซิร์ฟเวอร์ (วางใน Apps Script ไม่ได้ถูกใช้งานจาก GitHub โดยตรง)
+```
+
+## วิธีติดตั้ง
+
+### 1) ฝั่ง Apps Script (ทำครั้งเดียว)
+
+1. เปิดโปรเจกต์ Apps Script เดิม แล้ววางโค้ดจาก `apps-script/Code.gs` ทับ `Code.gs` เดิม
+   (ไฟล์ `Index.html` ในโปรเจกต์ Apps Script จะลบหรือเก็บไว้ก็ได้ ถ้าเก็บไว้ การเปิด URL `/exec` ตรง ๆ จะยังแสดงหน้าเว็บแบบเดิม)
+2. ตั้งค่า **ไอดีชีตรายชื่อครู**: Project Settings → Script properties → Add script property
+   - Property: `SRC_ID`
+   - Value: ไอดีไฟล์ชีตรายชื่อครูตัวเดิม (ค่าที่เคยอยู่ในบรรทัด `const SRC_ID_=...` ของ Code.gs เดิม)
+   - ไอดีนี้ไม่ถูกเขียนในโค้ด เพื่อไม่ให้หลุดขึ้น GitHub
+3. Deploy → New deployment → ประเภท **Web app**
+   - Execute as: **Me**
+   - Who has access: **Anyone** (ต้องเป็น Anyone เพื่อให้หน้าเว็บบน GitHub เรียกได้)
+4. คัดลอก URL ที่ลงท้ายด้วย `/exec`
+
+> ทุกครั้งที่แก้ `Code.gs` ต้อง Deploy → Manage deployments → ✏️ → Version: **New version** → Deploy
+> URL เดิมจึงจะใช้โค้ดใหม่
+
+### 2) ฝั่ง GitHub
+
+1. แก้ `config.js` ใส่ URL ที่ได้จากข้อ 1.4
+2. อัปโหลดไฟล์ขึ้น repository (branch `main`)
+3. Settings → Pages → Build and deployment → Source: **Deploy from a branch** → Branch: `main` / `(root)` → Save
+4. รอสักครู่ แล้วเปิด `https://<ชื่อบัญชี>.github.io/<ชื่อ repo>/`
+
+## ติดตั้งเป็นแอปบนหน้าจอมือถือ (PWA)
+
+อัปโหลด `manifest.webmanifest`, `sw.js` และโฟลเดอร์ `icons/` ไว้ระดับเดียวกับ `index.html` (ต้องเปิดผ่าน https เช่น GitHub Pages)
+
+- **Android (Chrome)**: จะมีแถบ "ติดตั้ง EduTask ลงหน้าจอ" เด้งขึ้นมา กดปุ่ม **ติดตั้ง** ได้เลย
+- **iPhone / iPad (Safari)**: กดปุ่ม **วิธีติดตั้ง** แล้วทำตามขั้นตอน แชร์ → เพิ่มไปยังหน้าจอโฮม
+- **เปิดจาก LINE / Facebook**: เบราว์เซอร์ในแอปเหล่านี้ติดตั้งไม่ได้ ระบบจะแนะนำให้เปิดด้วย Chrome / Safari ก่อน
+- หลังปิดแถบ ระบบจะไม่เด้งซ้ำ 7 วัน แต่ยังกดติดตั้งได้จากปุ่มดาวน์โหลดที่มุมขวาบนของหัวหน้าเว็บ (หน้าจอมือถือ/แท็บเล็ต)
+- เมื่อติดตั้งแล้ว แถบและปุ่มจะหายไปเอง และแอปจะเปิดเต็มจอแบบไม่มีแถบเบราว์เซอร์
+
+เมื่อแก้ไฟล์หน้าเว็บ ระบบจะดึงเวอร์ชันใหม่ทุกครั้งที่มีเน็ต ถ้าต้องการบังคับล้างแคชเก่าในเครื่องผู้ใช้ ให้เปลี่ยนเลข `VERSION` ใน `sw.js` (เช่น `edutask-v2`)
+ข้อมูลงานยังต้องใช้อินเทอร์เน็ตเหมือนเดิม (ออฟไลน์จะเปิดหน้าแอปได้ แต่ยังโหลดข้อมูลไม่ได้)
+
+## ข้อควรรู้
+
+- URL ของ Apps Script อยู่ใน `config.js` ซึ่งเปิดดูได้สาธารณะ ผู้ที่ได้ URL สามารถเรียก API ได้ จึงไม่ควรเก็บข้อมูลที่เป็นความลับในชีตงาน
+- ถ้าจะจำกัดให้เฉพาะครูที่ล็อกอินด้วย Gmail เข้าได้ ต้องเพิ่มการตรวจสอบ Google ID token ที่ฝั่ง Apps Script (ยังไม่ได้ทำ)
+- การเรียกครั้งแรกหลังไม่มีใครใช้งานสักพักอาจช้า 1–3 วินาที (Apps Script เริ่มทำงานใหม่)
+- เปิดไฟล์ `index.html` ในเครื่องโดยตรง (file://) ได้เมื่อตั้ง `config.js` แล้ว แต่แนะนำให้ทดสอบผ่าน GitHub Pages
