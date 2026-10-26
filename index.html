@@ -1205,7 +1205,7 @@ var PushUI=(function(){
   if('serviceWorker' in navigator){
     navigator.serviceWorker.addEventListener('message',function(e){
       var m=e.data||{};
-      if(m.type==='push'){try{loadData(true)}catch(x){}}
+      if(m.type==='push'){try{var d=m.data||{};toast((d.title||'EduTask')+(d.body?' – '+String(d.body).split('\n')[0]:''))}catch(x){}try{loadData(true)}catch(x){}try{setTimeout(function(){PushUI.badge()},1500)}catch(x){}}
       if(m.type==='go'&&m.tab){try{switchTab('tab-'+m.tab)}catch(x){}}
     });
   }
