@@ -553,7 +553,7 @@ async function syncTeachers(){
 const fail=e=>{swal({icon:'error',title:'บันทึกไม่สำเร็จ',text:errMsg(e)});loadData(true)};
 async function loadData(silent){
   try{const r=await gs('api_getAll');const prev=seenIds;tasks=r.tasks;seenIds=new Set(tasks.map(x=>x.id));
-    if(prev){const fresh=tasks.filter(x=>!prev.has(x.id)&&(!me||(x.teacherIds||[]).includes(me)));
+    if(prev){const fresh=tasks.filter(x=>!prev.has(x.id)&&(me&&(x.teacherIds||[]).includes(me)));
       fresh.slice(0,3).forEach(x=>newTaskAlert(x));if(fresh.length>3)newTaskAlert(null,fresh.length-3)}
     TEACHERS.length=0;TEACHERS.push(...r.teachers);TEACHERS.forEach(fixInitials);TEACHERS.forEach(t=>{if(t.photoId&&PH[t.photoId])t.photo=PH[t.photoId]})}
   catch(e){if(silent)return;await swal({icon:'error',title:'โหลดข้อมูลไม่สำเร็จ',text:errMsg(e),confirmText:'ลองใหม่'});return loadData()}
@@ -998,11 +998,11 @@ function newTaskAlert(t,more){
   let tm;function kill(){clearTimeout(tm);el.classList.remove('in');setTimeout(()=>el.remove(),300)}
   if(t){
     const u=URG[t.urgency]||URG.normal,tag=t.urgency==='normal'?'':`[${u[0]}] `;
-    el.innerHTML=`<span class="em">🔔</span><div class="tx"><b>${esc(tag)}งานใหม่จาก ${esc(t.assigner)}</b><span class="tt">${esc(t.title)}</span><span class="s">กำหนดส่ง ${fmtDate(t.dueDate)}</span></div><button type="button" class="x" aria-label="ปิด">&times;</button>`;
+    el.innerHTML=`<span class="em">🔔</span><div class="tx"><b>${esc(tag)}มีงานมอบหมายให้คุณ</b><span class="s" style="margin:0 0 2px">จาก ${esc(t.assigner)}</span><span class="tt">${esc(t.title)}</span><span class="s">กำหนดส่ง ${fmtDate(t.dueDate)}</span></div><button type="button" class="x" aria-label="ปิด">&times;</button>`;
     el.onclick=()=>{kill();openTask(t.id,!!me&&(t.teacherIds||[]).includes(me))};
   }else{
     el.innerHTML=`<span class="em">🔔</span><div class="tx"><b>มีงานใหม่อีก ${more} งาน</b><span class="s">แตะเพื่อดูรายการงาน</span></div><button type="button" class="x" aria-label="ปิด">&times;</button>`;
-    el.onclick=()=>{kill();switchTab(me?'tab-my':'tab-list')};
+    el.onclick=()=>{kill();switchTab('tab-my')};
   }
   el.querySelector('.x').onclick=e=>{e.stopPropagation();kill()};
   box.appendChild(el);requestAnimationFrame(()=>requestAnimationFrame(()=>el.classList.add('in')));
