@@ -3,6 +3,16 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<!-- PWA: ติดตั้งลงหน้าจอมือถือ -->
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#2E5FBF" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0A1322" media="(prefers-color-scheme: dark)">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="EduTask">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="48x48" href="icons/favicon-48.png">
 <title>ระบบมอบหมายและติดตามงานครู - โรงเรียนอนุบาลชุมชนหนองบัวแดง</title>
 <script src="config.js"></script>
 <script src="https://cdn.tailwindcss.com/3.4.17"></script>
@@ -260,6 +270,28 @@ select.inp{appearance:none;-webkit-appearance:none;padding-right:40px;background
 .tview-n{position:absolute;top:-7px;right:-7px;min-width:18px;height:18px;padding:0 4px;border-radius:99px;background:var(--orange);color:#fff;font-size:10px;font-weight:700;font-style:normal;display:grid;place-items:center;line-height:1}
 .dash-scroll .bar{animation:none}
 @media(max-width:420px){.nv{font-size:10px}}
+/* ===== PWA: แถบติดตั้งแอป ===== */
+#installBar{position:fixed;z-index:80;left:50%;bottom:calc(16px + env(safe-area-inset-bottom,0px));width:min(460px,calc(100% - 24px));display:none;align-items:center;gap:12px;padding:12px 10px 12px 12px;background:var(--bg);border:1px solid var(--line);border-radius:22px;box-shadow:0 18px 40px -12px rgba(30,58,110,.45);opacity:0;transform:translate(-50%,18px);transition:opacity .3s,transform .3s}
+#installBar.show{display:flex}
+#installBar.in{opacity:1;transform:translate(-50%,0)}
+#installBar img{width:46px;height:46px;border-radius:12px;flex-shrink:0}
+#installBar .it{flex:1;min-width:0;line-height:1.35}
+#installBar .it b{display:block;color:var(--ink);font-size:14px}
+#installBar .it span{display:block;font-size:12px}
+#installBar .btn{padding:9px 16px;white-space:nowrap}
+#installBar .x{width:32px;height:32px;border:0;background:none;color:var(--txt);font-size:22px;line-height:1;cursor:pointer;border-radius:10px;flex-shrink:0}
+#installBar .x:hover{background:var(--mist)}
+@media(max-width:760px){#installBar{bottom:calc(98px + env(safe-area-inset-bottom,0px))}}
+.inst-btn{display:none;width:38px;height:38px;border-radius:12px;border:1.5px solid var(--blue);background:transparent;color:var(--blue);place-items:center;cursor:pointer;flex-shrink:0}
+.inst-btn.on{display:grid}
+.inst-btn:hover{background:var(--blue);color:#fff}
+#installHelp{position:fixed;inset:0;z-index:95;background:rgba(15,26,46,.55);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;padding:16px;overflow-y:auto}
+#installHelp.hidden{display:none}
+#installHelp ol{margin:14px 0 0;padding:0;list-style:none;counter-reset:s}
+#installHelp li{counter-increment:s;display:flex;gap:12px;align-items:flex-start;margin-bottom:12px;line-height:1.6;font-size:14px}
+#installHelp li:before{content:counter(s);flex-shrink:0;width:26px;height:26px;border-radius:50%;background:var(--blue);color:#fff;font-weight:700;font-size:13px;display:grid;place-items:center;margin-top:1px}
+#installHelp .warn{background:var(--peach);color:var(--ink);border-radius:14px;padding:10px 12px;font-size:13px;line-height:1.6;margin-top:14px}
+@media(max-width:760px){#installHelp{align-items:flex-end;padding:0}}
 </style>
 </head>
 <body>
@@ -274,6 +306,19 @@ select.inp{appearance:none;-webkit-appearance:none;padding-right:40px;background
     <p class="font-bold text-lg" style="color:var(--ink)">กำลังเตรียมข้อมูล<span class="sp-dots"><i>.</i><i>.</i><i>.</i></span></p>
     <p class="text-sm mt-1">ระบบมอบหมายและติดตามงานครู</p>
     <div class="sp-bar"><i></i></div>
+  </div>
+</div>
+<div id="installBar" role="dialog" aria-label="ติดตั้งแอป EduTask">
+  <img src="icons/icon-192.png" alt="" width="46" height="46">
+  <div class="it"><b>ติดตั้ง EduTask ลงหน้าจอ</b><span>เปิดใช้ได้เร็วเหมือนแอป ไม่ต้องพิมพ์ลิงก์</span></div>
+  <button type="button" class="btn" id="installGo" onclick="EduInstall.go()">ติดตั้ง</button>
+  <button type="button" class="x" onclick="EduInstall.dismiss()" aria-label="ปิด">&times;</button>
+</div>
+<div id="installHelp" class="hidden" role="dialog" aria-modal="true" aria-labelledby="ihTitle" onclick="if(event.target===this)EduInstall.closeHelp()">
+  <div class="pop">
+    <h2 id="ihTitle" class="font-bold text-lg" style="color:var(--ink)">วิธีติดตั้งแอปลงหน้าจอ</h2>
+    <div id="ihBody"></div>
+    <div class="mt-5 flex justify-end"><button type="button" class="btn" onclick="EduInstall.closeHelp()">เข้าใจแล้ว</button></div>
   </div>
 </div>
 <div class="shell">
@@ -298,6 +343,7 @@ select.inp{appearance:none;-webkit-appearance:none;padding-right:40px;background
     <div class="hdr flex items-center gap-3 mb-6">
       <div class="logo hdr-logo">ET</div>
       <div class="min-w-0 flex-1"><b class="hdr-name">EduTask</b><span class="sch-top">โรงเรียนอนุบาลชุมชนหนองบัวแดง</span></div>
+      <button type="button" class="inst-btn" id="hdrInstall" onclick="EduInstall.go()" aria-label="ติดตั้งแอปลงหน้าจอ" title="ติดตั้งแอปลงหน้าจอ"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11M7.5 10.5L12 15l4.5-4.5M5 19h14"/></svg></button>
     </div>
 
     <!-- แท็บ 1 -->
@@ -925,6 +971,60 @@ window.onload=()=>{
   document.addEventListener('keydown',e=>{if(e.key==='Escape'){if(!$('regModal').classList.contains('hidden'))closeReg();else if(!$('teacherModal').classList.contains('hidden'))closeTeacher();else if(!$('taskModal').classList.contains('hidden'))closeTask();else closeAssign()}});
   Promise.all([initApp(),new Promise(r=>setTimeout(r,1500))]).then(()=>{const sp=$('splash');sp.classList.add('out');setTimeout(()=>sp.remove(),600)});
 };
+</script>
+<script>
+/* PWA: ติดตั้งลงหน้าจอ + service worker (แยกจากสคริปต์หลัก) */
+var EduInstall=(function(){
+  var g=function(i){return document.getElementById(i)};
+  var ua=navigator.userAgent||'',dp=null,KEY='et_install_hide';
+  var isIOS=/iPad|iPhone|iPod/.test(ua)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
+  var isAndroid=/Android/i.test(ua);
+  var inApp=/Line\/|FBAN|FBAV|Instagram|MicroMessenger|; wv\)/i.test(ua);
+  var standalone=function(){return (window.matchMedia&&matchMedia('(display-mode: standalone)').matches)||navigator.standalone===true};
+  function dismissed(){try{return Date.now()-(+localStorage.getItem(KEY)||0)<7*864e5}catch(e){return false}}
+  function capable(){return !!dp||isIOS||isAndroid||inApp}
+  function hdr(){var b=g('hdrInstall');if(b)b.classList.toggle('on',!standalone()&&capable())}
+  function hideBar(){var b=g('installBar');if(!b)return;b.classList.remove('in');setTimeout(function(){b.classList.remove('show')},300)}
+  function showBar(){
+    var b=g('installBar');if(!b||standalone()||dismissed()||!capable()||g('splash'))return;
+    g('installGo').textContent=dp?'ติดตั้ง':'วิธีติดตั้ง';
+    b.classList.add('show');requestAnimationFrame(function(){requestAnimationFrame(function(){b.classList.add('in')})});
+  }
+  function refresh(){hdr();var b=g('installBar');if(b&&b.classList.contains('show'))g('installGo').textContent=dp?'ติดตั้ง':'วิธีติดตั้ง'}
+  function openHelp(){
+    var t,h;
+    if(inApp){
+      t='เปิดด้วยเบราว์เซอร์ก่อน';
+      h='<div class="warn">ตอนนี้เปิดอยู่ในเบราว์เซอร์ของ LINE / Facebook ซึ่งติดตั้งแอปไม่ได้</div><ol><li>แตะเมนู <b>⋮</b> หรือ <b>ไอคอนเข็มทิศ / แชร์</b> มุมขวาบนหรือล่าง</li><li>เลือก <b>เปิดในเบราว์เซอร์</b> (Chrome หรือ Safari)</li><li>เมื่อหน้าเว็บเปิดใหม่ กดปุ่ม <b>ติดตั้ง</b> อีกครั้ง</li></ol>';
+    }else if(isIOS){
+      t='ติดตั้งบน iPhone / iPad';
+      h='<ol><li>เปิดหน้านี้ด้วย <b>Safari</b></li><li>แตะปุ่ม <b>แชร์</b> (ไอคอนสี่เหลี่ยมมีลูกศรชี้ขึ้น) ที่แถบด้านล่างหรือด้านบน</li><li>เลื่อนลงแล้วเลือก <b>เพิ่มไปยังหน้าจอโฮม</b></li><li>แตะ <b>เพิ่ม</b> มุมขวาบน จะมีไอคอน EduTask บนหน้าจอ</li></ol>';
+    }else{
+      t='ติดตั้งบนมือถือ Android';
+      h='<ol><li>แตะเมนู <b>⋮</b> มุมขวาบนของ Chrome</li><li>เลือก <b>ติดตั้งแอป</b> หรือ <b>เพิ่มลงในหน้าจอหลัก</b></li><li>กด <b>ติดตั้ง</b> เพื่อยืนยัน จะมีไอคอน EduTask บนหน้าจอ</li></ol>';
+    }
+    g('ihTitle').textContent=t;g('ihBody').innerHTML=h;g('installHelp').classList.remove('hidden');
+  }
+  function go(){
+    if(dp){
+      var p=dp;dp=null;
+      p.prompt();
+      p.userChoice.then(function(r){if(r&&r.outcome==='accepted')hideBar();refresh()}).catch(function(){});
+      return;
+    }
+    openHelp();
+  }
+  window.addEventListener('beforeinstallprompt',function(e){e.preventDefault();dp=e;refresh();showBar()});
+  window.addEventListener('appinstalled',function(){dp=null;hideBar();var b=g('hdrInstall');if(b)b.classList.remove('on')});
+  document.addEventListener('keydown',function(e){if(e.key==='Escape')closeHelp()});
+  function closeHelp(){g('installHelp').classList.add('hidden')}
+  function waitSplash(){if(g('splash'))return setTimeout(waitSplash,600);setTimeout(showBar,800)}
+  window.addEventListener('load',function(){refresh();waitSplash()});
+  if('serviceWorker' in navigator&&/^https?:$/.test(location.protocol)){
+    window.addEventListener('load',function(){navigator.serviceWorker.register('sw.js').catch(function(){})});
+  }
+  return{go:go,closeHelp:closeHelp,dismiss:function(){try{localStorage.setItem(KEY,String(Date.now()))}catch(e){}hideBar()}};
+})();
 </script>
 </body>
 </html>
