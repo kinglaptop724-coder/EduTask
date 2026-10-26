@@ -304,6 +304,19 @@ select.inp{appearance:none;-webkit-appearance:none;padding-right:40px;background
 #pushCard .pc .s{display:block;font-size:12px}
 #pushCard .pc .btn,#pushCard .pc .btn2{padding:9px 16px;white-space:nowrap;font-size:13px;flex-shrink:0}
 #pushCard .pn{margin:-6px 0 16px;padding:10px 12px;border-radius:14px;background:var(--peach);color:var(--ink);font-size:13px;line-height:1.6}
+
+/* ===== แจ้งเตือนงานใหม่ (มุมขวาบน) ===== */
+#notifyBox{position:fixed;z-index:120;top:calc(16px + env(safe-area-inset-top,0px));right:16px;width:min(360px,calc(100% - 32px));display:flex;flex-direction:column;gap:10px;pointer-events:none}
+.nt{pointer-events:auto;position:relative;display:flex;gap:12px;align-items:flex-start;padding:14px 38px 14px 14px;background:var(--bg);border:1px solid var(--line);border-left:5px solid var(--orange);border-radius:18px;box-shadow:0 18px 40px -12px rgba(30,58,110,.45);cursor:pointer;opacity:0;transform:translateX(30px);transition:opacity .3s,transform .3s}
+.nt.in{opacity:1;transform:none}
+.nt .em{width:38px;height:38px;border-radius:12px;background:var(--orange);color:#fff;display:grid;place-items:center;font-size:18px;flex-shrink:0}
+.nt .tx{min-width:0;line-height:1.4}
+.nt b{display:block;color:var(--ink);font-size:14px}
+.nt .tt{font-size:13px;color:var(--ink);overflow-wrap:anywhere;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.nt .s{display:block;font-size:12px;margin-top:2px}
+.nt .x{position:absolute;top:6px;right:6px;width:28px;height:28px;border:0;background:none;color:var(--txt);font-size:20px;line-height:1;border-radius:10px;cursor:pointer}
+.nt .x:hover{background:var(--mist)}
+@media(max-width:760px){#notifyBox{right:12px;left:12px;width:auto}}
 </style>
 </head>
 <body>
@@ -488,6 +501,7 @@ select.inp{appearance:none;-webkit-appearance:none;padding-right:40px;background
     <div id="taskDetail"></div>
   </div>
 </div>
+<div id="notifyBox" aria-live="polite"></div>
 <div id="toastContainer" class="fixed bottom-5 right-5 z-50 flex flex-col gap-2 pointer-events-none"></div>
 
 <script>
@@ -496,7 +510,7 @@ const TEACHERS=[];
 const IC={list:`<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h10"/></svg>`,clock:`<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>`,sync:`<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.5-5.8"/><path d="M20 4v5h-5"/></svg>`,check:`<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>`,alert:`<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16.5v.01"/></svg>`};
 const ST={all:{l:'งานทั้งหมด',c:'#2E5FBF',i:IC.list},pending:{l:'รอทำ',c:'#F29A1F',i:IC.clock},in_progress:{l:'กำลังทำ',c:'#3E9BEA',i:IC.sync},completed:{l:'เสร็จแล้ว',c:'#1FA97A',i:IC.check}};
 const URG={normal:['ปกติ','#2E5FBF'],urgent:['ด่วน','#F29A1F'],very_urgent:['ด่วนที่สุด','#E5484D']};
-let tasks=[],filter='all',asg=ASSIGNERS[0],selT=[],tab3=null;
+let seenIds=null,tasks=[],filter='all',asg=ASSIGNERS[0],selT=[],tab3=null;
 const $=id=>document.getElementById(id);
 const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 
@@ -538,7 +552,10 @@ async function syncTeachers(){
 }
 const fail=e=>{swal({icon:'error',title:'บันทึกไม่สำเร็จ',text:errMsg(e)});loadData(true)};
 async function loadData(silent){
-  try{const r=await gs('api_getAll');tasks=r.tasks;TEACHERS.length=0;TEACHERS.push(...r.teachers);TEACHERS.forEach(fixInitials);TEACHERS.forEach(t=>{if(t.photoId&&PH[t.photoId])t.photo=PH[t.photoId]})}
+  try{const r=await gs('api_getAll');const prev=seenIds;tasks=r.tasks;seenIds=new Set(tasks.map(x=>x.id));
+    if(prev){const fresh=tasks.filter(x=>!prev.has(x.id)&&(!me||(x.teacherIds||[]).includes(me)));
+      fresh.slice(0,3).forEach(x=>newTaskAlert(x));if(fresh.length>3)newTaskAlert(null,fresh.length-3)}
+    TEACHERS.length=0;TEACHERS.push(...r.teachers);TEACHERS.forEach(fixInitials);TEACHERS.forEach(t=>{if(t.photoId&&PH[t.photoId])t.photo=PH[t.photoId]})}
   catch(e){if(silent)return;await swal({icon:'error',title:'โหลดข้อมูลไม่สำเร็จ',text:errMsg(e),confirmText:'ลองใหม่'});return loadData()}
   selT=selT.filter(id=>TEACHERS.some(t=>t.id===id));
   if(!TEACHERS.some(t=>t.id===tab3))tab3=TEACHERS[0]?TEACHERS[0].id:null;
@@ -550,7 +567,7 @@ async function initApp(){
   $('urgGrid').innerHTML=Object.entries(URG).map(([k,v],i)=>`<label class="cursor-pointer"><input type="radio" name="urgency" value="${k}" class="peer sr-only" ${i?'':'checked'}><div class="py-2 text-center text-sm font-semibold rounded-xl border peer-checked:text-white" style="border-color:var(--line);--c:${v[1]}">${v[0]}</div></label>`).join('');
   document.addEventListener('change',e=>{if(e.target.name==='urgency')paintUrg()});paintUrg();
   await loadData();
-  setInterval(()=>{if(!document.hidden&&!document.querySelector('#tab-assign:not(.hidden),#regModal:not(.hidden),#swal,#swBusy'))loadData(true)},60000);
+  setInterval(()=>{if(!document.hidden&&!document.querySelector('#tab-assign:not(.hidden),#regModal:not(.hidden),#swal,#swBusy'))loadData(true)},30000);
 }
 function paintUrg(){document.querySelectorAll('#urgGrid label').forEach(l=>{const r=l.querySelector('input'),d=l.querySelector('div');d.style.background=r.checked?d.style.getPropertyValue('--c'):'var(--card)'})}
 const save=()=>{};
@@ -974,6 +991,23 @@ function swShow(o){return new Promise(res=>{
 })}
 window.alert=m=>{swal({icon:'info',title:String(m)})};
 
+
+function newTaskAlert(t,more){
+  const box=$('notifyBox');if(!box)return;
+  const el=document.createElement('div');el.className='nt';el.setAttribute('role','status');
+  let tm;function kill(){clearTimeout(tm);el.classList.remove('in');setTimeout(()=>el.remove(),300)}
+  if(t){
+    const u=URG[t.urgency]||URG.normal,tag=t.urgency==='normal'?'':`[${u[0]}] `;
+    el.innerHTML=`<span class="em">🔔</span><div class="tx"><b>${esc(tag)}งานใหม่จาก ${esc(t.assigner)}</b><span class="tt">${esc(t.title)}</span><span class="s">กำหนดส่ง ${fmtDate(t.dueDate)}</span></div><button type="button" class="x" aria-label="ปิด">&times;</button>`;
+    el.onclick=()=>{kill();openTask(t.id,!!me&&(t.teacherIds||[]).includes(me))};
+  }else{
+    el.innerHTML=`<span class="em">🔔</span><div class="tx"><b>มีงานใหม่อีก ${more} งาน</b><span class="s">แตะเพื่อดูรายการงาน</span></div><button type="button" class="x" aria-label="ปิด">&times;</button>`;
+    el.onclick=()=>{kill();switchTab(me?'tab-my':'tab-list')};
+  }
+  el.querySelector('.x').onclick=e=>{e.stopPropagation();kill()};
+  box.appendChild(el);requestAnimationFrame(()=>requestAnimationFrame(()=>el.classList.add('in')));
+  tm=setTimeout(kill,9000);
+}
 function toast(m){
   const el=document.createElement('div');
   el.className='px-4 py-3 rounded-xl text-sm font-medium text-white shadow-lg transition-all duration-300 opacity-0 translate-y-2';
@@ -1121,7 +1155,7 @@ var PushUI=(function(){
   if('serviceWorker' in navigator){
     navigator.serviceWorker.addEventListener('message',function(e){
       var m=e.data||{};
-      if(m.type==='push'){var d=m.data||{};toast((d.title||'แจ้งเตือน')+': '+String(d.body||'').split('\n')[0]);try{loadData(true)}catch(x){}}
+      if(m.type==='push'){try{loadData(true)}catch(x){}}
       if(m.type==='go'&&m.tab){try{switchTab('tab-'+m.tab)}catch(x){}}
     });
   }
