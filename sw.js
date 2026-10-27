@@ -3,7 +3,7 @@
  * - ไม่แตะต้องการเรียก Apps Script (ข้อมูลงานต้องสดเสมอ)
  * - รับแจ้งเตือน (push) จาก Firebase Cloud Messaging แล้วแสดงบนมือถือ + ตั้งตัวเลขบนไอคอน
  * - เปลี่ยนเลข VERSION เมื่อต้องการบังคับให้เครื่องผู้ใช้ล้างแคชเก่า */
-const VERSION = 'edutask-v4';
+const VERSION = 'edutask-v5';
 const SHELL = [
   './',
   'index.html',
@@ -66,7 +66,7 @@ self.addEventListener('fetch', e => {
 });
 
 /* ===== แจ้งเตือน (push) =====
- * เซิร์ฟเวอร์ส่งเป็น data-only: {title, body, tag, badge, url}
+ * เซิร์ฟเวอร์ส่งเป็น data-only: {title, body, tag, badge?, url, tab}
  * - ถ้าแอปเปิดอยู่หน้าจอ → ส่งต่อให้หน้าเว็บแสดงเป็น toast + โหลดข้อมูลใหม่ (ไม่เด้งซ้ำ)
  * - ถ้าแอปปิด/อยู่เบื้องหลัง → แสดงแจ้งเตือนของระบบ */
 self.addEventListener('push', e => {
@@ -87,7 +87,7 @@ self.addEventListener('push', e => {
       renotify: true,
       icon: 'icons/icon-192.png',
       badge: 'icons/badge-96.png',
-      data: { url: d.url || './?go=my' }
+      data: { url: d.url || './?go=my', tab: d.tab || 'my' }
     });
   })());
 });
@@ -95,10 +95,11 @@ self.addEventListener('push', e => {
 self.addEventListener('notificationclick', e => {
   e.notification.close();
   const url = (e.notification.data && e.notification.data.url) || './?go=my';
+  const tab = (e.notification.data && e.notification.data.tab) || 'my'; // ครู → งานของฉัน | ผู้มอบหมาย → งานทั้งหมด
   e.waitUntil((async () => {
     const wins = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
     for (const c of wins) {
-      if ('focus' in c) { await c.focus(); c.postMessage({ type: 'go', tab: 'my' }); return; }
+      if ('focus' in c) { await c.focus(); c.postMessage({ type: 'go', tab: tab }); return; }
     }
     await self.clients.openWindow(url);
   })());
