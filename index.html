@@ -764,8 +764,33 @@ function renderStats(){
   $('heroPie').style.background=`conic-gradient(var(--orange) 0 ${p}%,#fff 0)`;
 }
 
+/* ===== รับทราบงาน: ครูแต่ละคนกดรับทราบ → ทุกคนเห็นสถานะ (t.acks = {รหัสครู: เวลา ms}) ===== */
+function fmtDT(ms){
+  const d=new Date(+ms);if(isNaN(d))return '';
+  const p=n=>String(n).padStart(2,'0');
+  return fmtDate(d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate()))+' '+p(d.getHours())+':'+p(d.getMinutes())+' น.';
+}
+function ackHTML(t){
+  const a=t.acks||{};
+  return (t.teacherIds||[]).map(id=>{
+    const x=TEACHERS.find(z=>z.id===id);if(!x)return '';
+    const ts=a[id];
+    return `<div class="flex items-center gap-2 text-xs"><b style="color:${ts?'var(--ok)':'#F29A1F'}">${ts?'✓':'⏳'}</b><span class="truncate flex-1">${esc(x.name)}</span><span class="shrink-0">${ts?esc(fmtDT(ts)):'ยังไม่รับทราบ'}</span></div>`;
+  }).join('')||'-';
+}
+async function ackTask(id){
+  const t=tasks.find(x=>x.id===id);if(!t||!me)return;
+  const b=busy('กำลังบันทึก…');
+  try{t.acks=await gs('api_ackTask',id,me,authTok(me));b.done();renderAll();toast('รับทราบงานแล้ว')}
+  catch(e){
+    b.done();
+    if(/เข้าสู่ระบบใหม่/.test(errMsg(e))){setAuth(null);closeTask();setMe(null);swal({icon:'warning',title:'กรุณาใส่ PIN ใหม่',text:'เซสชันหมดอายุ ใส่ PIN แล้วกดรับทราบอีกครั้ง'})}
+    else fail(e);
+  }
+}
 function taskCard(t){
   const noDel=tkMine&&tkOpen===t.id; // มุมมอง "งานของฉัน" ไม่แสดงปุ่มลบงาน
+  const needAck=tkMine&&tkOpen===t.id&&!!me&&(t.teacherIds||[]).includes(me)&&!(t.acks||{})[me];
   const done=t.status==='completed',u=URG[t.urgency]||URG.normal,sc=ST[t.status]||ST.pending;
   const today=new Date();today.setHours(0,0,0,0);
   const d=Math.round((new Date(t.dueDate+'T00:00:00')-today)/864e5),late=!done&&d<0;
@@ -789,9 +814,11 @@ function taskCard(t){
       ${row('กำหนดส่ง',`<b style="color:${dc}">${fmtDate(t.dueDate)}${dl}</b>`)}
       ${row('มอบหมายจาก',`<b class="truncate block" style="color:var(--ink)">${esc(t.assigner)}</b>`)}
       ${row('ผู้รับผิดชอบ',`<div class="flex items-center gap-2"><div class="flex">${av}</div><span class="truncate text-xs">${nm}</span></div>`)}
+      ${row('รับทราบ',`<div class="grid gap-1">${ackHTML(t)}</div>`)}
       ${row('ไฟล์แนบ',filesHTML(t))}
     </div>
   </div>
+  ${needAck?`<div class="px-4 pb-3"><button type="button" class="btn w-full" onclick="ackTask(${t.id})">✓ รับทราบงานนี้</button></div>`:''}
   <div class="px-4 pb-4"><div class="grid grid-cols-3 gap-1 p-1 rounded-2xl" style="background:var(--mist)">${seg('pending','รอทำ')}${seg('in_progress','กำลังทำ')}${seg('completed','เสร็จแล้ว')}</div></div></article>`;
 }
 function taskCardOld(t){
@@ -819,12 +846,16 @@ function taskRow(t,mine){
   const dl=done?'':late?` (เลย ${-d} วัน)`:d===0?' (วันนี้)':d<=3?` (อีก ${d} วัน)`:'';
   const bar=done?'#1FA97A':({normal:'#3E9BEA',urgent:'#F29A1F',very_urgent:'#E5484D'}[t.urgency]||'#3E9BEA');
   const ts=(t.teacherIds||[]).map(id=>TEACHERS.find(a=>a.id===id)).filter(Boolean);
-  const bub='width:26px;height:26px;border-radius:50%;font-size:10px;font-weight:700;display:grid;place-items:center;border:2px solid var(--card);flex-shrink:0';
-  const av=ts.slice(0,3).map((x,i)=>`<span title="${esc(x.name)}" style="${bub};color:#fff;margin-left:${i?-7:0}px;${tbg(x)}">${esc(x.initials)}</span>`).join('')+(ts.length>3?`<span style="${bub};background:var(--mist);color:var(--blue);margin-left:-7px">+${ts.length-3}</span>`:'');
+  const ak=t.acks||{},ids=t.teacherIds||[],nAck=ids.filter(i=>ak[i]).length,allAck=ids.length>0&&nAck===ids.length;
+  const ackPill=mine&&me
+    ?(ak[me]?'':`<span class="pill" style="background:#F29A1F22;color:#B86E00">รอรับทราบ</span>`)
+    :`<span class="pill" style="background:${allAck?'#1FA97A1A':'#F29A1F1A'};color:${allAck?'var(--ok)':'#B86E00'}">${allAck?'✓ ':''}รับทราบ ${nAck}/${ids.length}</span>`;
+  const bub='width:40px;height:40px;border-radius:50%;font-size:13px;font-weight:700;display:grid;place-items:center;border:2px solid var(--card);flex-shrink:0';
+  const av=ts.slice(0,3).map((x,i)=>`<span title="${esc(x.name)}" style="${bub};color:#fff;margin-left:${i?-12:0}px;${tbg(x)}">${esc(x.initials)}</span>`).join('')+(ts.length>3?`<span style="${bub};background:var(--mist);color:var(--blue);margin-left:-12px">+${ts.length-3}</span>`:'');
   return `<div class="card trw" role="button" tabindex="0" aria-label="ดูรายละเอียด ${esc(t.title)}" onclick="openTask(${t.id}${mine?',true':''})" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openTask(${t.id}${mine?',true':''})}">
   <span class="trw-bar" style="background:${bar}"></span>
   <div class="min-w-0 flex-1">
-    <div class="flex items-center gap-1.5 mb-1.5 flex-wrap"><span class="pill" style="background:${sc.c}1A;color:${sc.c}"><i style="width:7px;height:7px;border-radius:50%;background:${sc.c}"></i>${sc.l}</span><span class="pill" style="background:${u[1]}1A;color:${u[1]}">${u[0]}</span></div>
+    <div class="flex items-center gap-1.5 mb-1.5 flex-wrap"><span class="pill" style="background:${sc.c}1A;color:${sc.c}"><i style="width:7px;height:7px;border-radius:50%;background:${sc.c}"></i>${sc.l}</span><span class="pill" style="background:${u[1]}1A;color:${u[1]}">${u[0]}</span>${ackPill}</div>
     <h3 class="${done?'line-through opacity-50':''}">${esc(t.title)}</h3>
     <div class="flex items-center justify-between gap-2 mt-2"><span class="text-xs min-w-0">กำหนดส่ง <b style="color:${dc}">${fmtDate(t.dueDate)}${dl}</b></span><div class="flex shrink-0">${av}</div></div>
   </div>
