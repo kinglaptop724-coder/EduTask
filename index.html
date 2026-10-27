@@ -300,13 +300,13 @@ select.inp{appearance:none;-webkit-appearance:none;padding-right:40px;background
 @media(max-width:760px){#installHelp{align-items:flex-end;padding:0}}
 /* ===== แจ้งเตือนมือถือ ===== */
 #pushCard:empty{display:none}
-#pushCard .pc{display:flex;align-items:center;gap:12px;padding:14px;margin-bottom:16px;border-radius:20px;background:var(--mist);border:1px solid var(--line)}
-#pushCard .pc .em{font-size:26px;line-height:1;flex-shrink:0}
-#pushCard .pc .tx{flex:1;min-width:0;line-height:1.4}
-#pushCard .pc b{display:block;color:var(--ink);font-size:14px}
-#pushCard .pc .s{display:block;font-size:12px}
-#pushCard .pc .btn,#pushCard .pc .btn2{padding:9px 16px;white-space:nowrap;font-size:13px;flex-shrink:0}
-#pushCard .pn{margin:-6px 0 16px;padding:10px 12px;border-radius:14px;background:var(--peach);color:var(--ink);font-size:13px;line-height:1.6}
+.pc{display:flex;align-items:center;gap:12px;padding:14px;margin-bottom:16px;border-radius:20px;background:var(--mist);border:1px solid var(--line)}
+.pc .em{font-size:26px;line-height:1;flex-shrink:0}
+.pc .tx{flex:1;min-width:0;line-height:1.4}
+.pc b{display:block;color:var(--ink);font-size:14px}
+.pc .s{display:block;font-size:12px}
+.pc .btn,.pc .btn2{padding:9px 16px;white-space:nowrap;font-size:13px;flex-shrink:0}
+.pn{margin:-6px 0 16px;padding:10px 12px;border-radius:14px;background:var(--peach);color:var(--ink);font-size:13px;line-height:1.6}
 
 /* ===== แจ้งเตือนงานใหม่ (มุมขวาบน) ===== */
 #notifyBox{position:fixed;z-index:120;top:calc(16px + env(safe-area-inset-top,0px));right:16px;width:min(360px,calc(100% - 32px));display:flex;flex-direction:column;gap:10px;pointer-events:none}
@@ -320,6 +320,9 @@ select.inp{appearance:none;-webkit-appearance:none;padding-right:40px;background
 .nt .x{position:absolute;top:6px;right:6px;width:28px;height:28px;border:0;background:none;color:var(--txt);font-size:20px;line-height:1;border-radius:10px;cursor:pointer}
 .nt .x:hover{background:var(--mist)}
 @media(max-width:760px){#notifyBox{right:12px;left:12px;width:auto}}
+#asgPush:empty{display:none}
+#asgPin{position:fixed;inset:0;z-index:150;display:flex;align-items:center;justify-content:center;padding:20px;background:rgba(15,26,46,.55);backdrop-filter:blur(4px)}
+#asgPin .sw-box{transform:none}
 </style>
 </head>
 <body>
@@ -387,7 +390,7 @@ select.inp{appearance:none;-webkit-appearance:none;padding-right:40px;background
         <div class="relative h-56 hidden md:block">
           <div class="blob pulse" style="width:230px;height:230px;background:var(--orange);right:30px;top:0"></div>
           <div class="blob bob" style="width:70px;height:70px;background:var(--sky);right:0;top:20px;border-radius:50%"></div>
-          <div class="absolute float" style="right:90px;top:12px;width:150px;height:205px;background:var(--mist);border:5px solid var(--ink);border-radius:26px;padding:12px;display:flex;flex-direction:column;gap:8px">
+          <div class="absolute float" style="right:90px;top:12px;width:150px;height:205px;background:var(--mist);border-radius:26px;padding:12px;box-shadow:0 14px 30px -10px rgba(30,58,110,.35);display:flex;flex-direction:column;gap:8px">
             <div style="background:var(--blue);border-radius:8px;height:44px;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700" id="heroAll">0</div>
             <div class="bar" style="background:var(--orange);border-radius:8px;height:10px;width:70%"></div>
             <div class="bar" style="animation-delay:.6s;background:var(--sky);border-radius:8px;height:10px"></div>
@@ -427,6 +430,7 @@ select.inp{appearance:none;-webkit-appearance:none;padding-right:40px;background
         <div>
           <p class="font-semibold mb-3" style="color:var(--ink)">ใครเป็นผู้มอบหมายงาน</p>
           <div id="assignerSelectionGrid" class="grid sm:grid-cols-2 gap-2.5"></div>
+          <div id="asgPush" class="mt-3"></div>
         </div>
         <div>
           <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
@@ -509,6 +513,9 @@ select.inp{appearance:none;-webkit-appearance:none;padding-right:40px;background
 
 <script>
 const ASSIGNERS=['ผู้อำนวยการโรงเรียน','รองฯ ฝ่ายวิชาการ','รองฯ ฝ่ายงบประมาณ','รองฯ ฝ่ายบุคคล','รองฯ ฝ่ายบริหารทั่วไป','รองฯ ฝ่ายกิจการนักเรียน'];
+/* รหัสตำแหน่งผู้มอบหมาย (ต้องตรงกับ ASG_ ใน Code.gs) – แต่ละตำแหน่งมี PIN ของตัวเอง */
+const ASG_IDS={'ผู้อำนวยการโรงเรียน':'A_dir','รองฯ ฝ่ายวิชาการ':'A_acad','รองฯ ฝ่ายงบประมาณ':'A_budget','รองฯ ฝ่ายบุคคล':'A_hr','รองฯ ฝ่ายบริหารทั่วไป':'A_admin','รองฯ ฝ่ายกิจการนักเรียน':'A_student'};
+const asgId=n=>ASG_IDS[n]||'A_dir'; // งานเก่าที่ตำแหน่งไม่อยู่ในรายการแล้ว ให้ ผอ. เป็นผู้ดูแล
 const TEACHERS=[];
 const IC={list:`<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h10"/></svg>`,clock:`<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>`,sync:`<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.5-5.8"/><path d="M20 4v5h-5"/></svg>`,check:`<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>`,alert:`<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16.5v.01"/></svg>`};
 const ST={all:{l:'งานทั้งหมด',c:'#2E5FBF',i:IC.list},pending:{l:'รอทำ',c:'#F29A1F',i:IC.clock},in_progress:{l:'กำลังทำ',c:'#3E9BEA',i:IC.sync},completed:{l:'เสร็จแล้ว',c:'#1FA97A',i:IC.check}};
@@ -707,8 +714,58 @@ function wzLock(){
   n.disabled=lock;n.setAttribute('aria-disabled',lock);
   n.title=lock?'เลือกครูอย่างน้อย 1 ท่านก่อน':'';
 }
+/* ===== PIN ผู้มอบหมาย: แต่ละตำแหน่งมี PIN ของตัวเอง ใช้ก่อนมอบหมาย/ลบงาน และก่อนเปิดแจ้งเตือน (เครื่องจำไว้ 90 วัน) ===== */
+const ASG_KEY='edutask_asg_v1';
+function asgMap(){try{return JSON.parse(localStorage.getItem(ASG_KEY)||'{}')||{}}catch(e){return{}}}
+function asgTok(id){return String(asgMap()[id]||'')}
+function setAsgTok(id,t){const m=asgMap();if(t)m[id]=t;else delete m[id];try{localStorage.setItem(ASG_KEY,JSON.stringify(m))}catch(e){}}
+function askAsgPin(id,name){return new Promise(res=>{
+  const prev=document.activeElement,el=document.createElement('div');
+  el.id='asgPin';el.setAttribute('role','dialog');el.setAttribute('aria-modal','true');el.setAttribute('aria-labelledby','apT');
+  let info=null,err='',bz=false,done=false;
+  const key=e=>{if(e.key==='Escape'){e.preventDefault();e.stopImmediatePropagation();if(!bz)fin(false)}};
+  function fin(v){if(done)return;done=true;document.removeEventListener('keydown',key,true);el.remove();if(prev&&prev.focus&&document.contains(prev)&&!/^(INPUT|SELECT|TEXTAREA)$/.test(prev.tagName))prev.focus();res(v)}
+  async function submit(){
+    if(bz||!info||info.wait>0)return;
+    const pin=(el.querySelector('#apIn')||{}).value||'',c2=el.querySelector('#apIn2');
+    if(!/^\d{4,6}$/.test(pin)){err='PIN ต้องเป็นตัวเลข 4–6 หลัก';draw();return}
+    if(!info.hasPin&&(!c2||c2.value!==pin)){err='PIN สองช่องไม่ตรงกัน';draw();return}
+    bz=true;err='';draw();
+    try{const r=await gs('api_login',id,pin);setAsgTok(id,r.token);fin(true)}
+    catch(e){bz=false;err=errMsg(e);draw();gs('api_pinStatus',id).then(i=>{if(!done){info=i;draw()}}).catch(()=>{})}
+  }
+  function draw(){
+    const ready=!!info,first=ready&&!info.hasPin,locked=ready&&info.wait>0,dis=(bz||locked||!ready)?'disabled':'';
+    const f=(i,l,ac)=>`<label class="block text-sm font-semibold mb-1 text-left" for="${i}">${l}</label><input id="${i}" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="6" autocomplete="${ac}" class="inp mb-3 text-center tracking-widest" ${dis} oninput="this.value=this.value.replace(/\\D/g,'')">`;
+    el.innerHTML=`<div class="sw-box"><h2 class="sw-t" id="apT">ยืนยันตัวตนผู้มอบหมาย</h2><p class="sw-x" style="margin-bottom:14px"><b style="color:var(--ink)">${esc(name)}</b></p>${!ready?'<p class="text-sm py-4">กำลังตรวจสอบ…</p>':`<p class="text-sm mb-3 text-left" style="line-height:1.7">${first?'ครั้งแรกของตำแหน่งนี้: ตั้ง PIN ตัวเลข 4–6 หลัก (ผู้ดำรงตำแหน่งใช้ร่วมกัน) ถ้าลืมให้แอดมินรีเซ็ต':'ใส่ PIN ของตำแหน่งนี้ เพื่อมอบหมาย/ลบงาน และรับแจ้งเตือนเมื่อครูรับทราบ'}</p>${f('apIn',first?'ตั้ง PIN':'PIN',first?'new-password':'current-password')}${first?f('apIn2','ยืนยัน PIN อีกครั้ง','new-password'):''}${locked?`<p class="text-sm mb-3" role="alert" style="color:#E5484D">ถูกล็อกชั่วคราว ลองใหม่ในอีก ${Math.ceil(info.wait/60)} นาที</p>`:''}${err?`<p class="text-sm mb-3" role="alert" style="color:#E5484D">${esc(err)}</p>`:''}`}<div class="sw-b"><button type="button" class="sw-no ap-no" ${bz?'disabled':''}>ยกเลิก</button><button type="button" class="sw-ok ap-ok" ${dis}>${bz?'กำลังตรวจสอบ…':first?'ตั้ง PIN':'เข้าสู่ระบบ'}</button></div></div>`;
+    el.querySelector('.ap-ok').onclick=submit;el.querySelector('.ap-no').onclick=()=>fin(false);
+    const i1=el.querySelector('#apIn');if(i1&&!i1.disabled)setTimeout(()=>i1.focus(),30);
+  }
+  el.onkeydown=e=>{if(e.key==='Enter'&&e.target.tagName==='INPUT'){e.preventDefault();submit()}};
+  el.onclick=e=>{if(e.target===el&&!bz)fin(false)};
+  document.addEventListener('keydown',key,true);document.body.appendChild(el);draw();
+  gs('api_pinStatus',id).then(i=>{if(!done){info=i;draw()}}).catch(e=>{fin(false);swal({icon:'error',title:'เปิดหน้า PIN ไม่สำเร็จ',text:errMsg(e)})});
+})}
+/* เรียก API ที่ต้องยืนยันตัวตนตำแหน่งผู้มอบหมาย: ยังไม่ล็อกอิน → ขอ PIN | token หมดอายุ → ขอ PIN ใหม่ 1 ครั้ง | ผู้ใช้กดยกเลิก → {cancel:true} */
+async function withAsg(name,fn){
+  const nm=ASG_IDS[name]?name:'ผู้อำนวยการโรงเรียน',id=asgId(nm);
+  for(let k=0;k<2;k++){
+    if(!asgTok(id)&&!await askAsgPin(id,nm))return{cancel:true};
+    try{return{v:await fn(asgTok(id))}}
+    catch(e){if(/เข้าสู่ระบบใหม่/.test(errMsg(e))){setAsgTok(id,null);continue}throw e}
+  }
+  throw new Error('ยืนยันตัวตนไม่สำเร็จ');
+}
+/* ขั้นที่ 1 ของหน้าต่างมอบหมาย: ต้องล็อกอินตำแหน่งก่อนไปต่อ (ล็อกอินใหม่ → อยู่หน้าเดิมให้เห็นปุ่มเปิดแจ้งเตือน แล้วกด ถัดไป อีกครั้ง) */
+async function ensureAsg(){
+  const id=asgId(asg);
+  if(asgTok(id))return true;
+  if(await askAsgPin(id,asg)){renderAssignForm();toast('เข้าสู่ระบบแล้ว • เปิดแจ้งเตือนด้านล่างได้ แล้วกด ถัดไป');}
+  return false;
+}
 function wzGo(d){
   if(d<0){if(wz===0){closeAssign();return}wz--;wzRender();return}
+  if(wz===0){ensureAsg().then(ok=>{if(ok){wz++;wzRender()}});return}
   if(wz===1&&!selT.length)return;
   if(wz===2)return;wz++;wzRender();
 }
@@ -882,11 +939,15 @@ function renderTaskList(){
 }
 function changeStatus(id,s){const t=tasks.find(x=>x.id===id);if(!t)return;t.status=s;gs('api_updateStatus',id,s).catch(fail);renderAll();toast(`เปลี่ยนสถานะเป็น "${ST[s].l}" แล้ว`)}
 async function deleteTask(id){const x=tasks.find(t=>t.id===id);if(!x)return;
-  if(!await swal({icon:'warning',title:'ลบงานนี้ใช่ไหม?',text:`“${x.title}”\nรวมถึงไฟล์แนบจะถูกลบถาวร`,confirmText:'ลบงาน',cancelText:'ยกเลิก',danger:true}))return;
-  tasks=tasks.filter(t=>t.id!==id);gs('api_deleteTask',id).catch(fail);renderAll();toast('ลบงานแล้ว')}
+  if(!await swal({icon:'warning',title:'ลบงานนี้ใช่ไหม?',text:`“${x.title}”\nรวมถึงไฟล์แนบจะถูกลบถาวร\nต้องยืนยันด้วย PIN ของ ${ASG_IDS[x.assigner]?x.assigner:'ผู้อำนวยการโรงเรียน'}`,confirmText:'ลบงาน',cancelText:'ยกเลิก',danger:true}))return;
+  let r;
+  try{r=await withAsg(x.assigner,tok=>{const b=busy('กำลังลบงาน…');return gs('api_deleteTask',id,tok).finally(()=>b.done())})}
+  catch(e){fail(e);return}
+  if(r.cancel)return;
+  tasks=tasks.filter(t=>t.id!==id);renderAll();toast('ลบงานแล้ว')}
 
 function renderAssignForm(){
-  $('assignerSelectionGrid').innerHTML=ASSIGNERS.map(a=>{const on=asg===a;return `<button type="button" onclick="asg='${a}';renderAssignForm()" class="p-3.5 rounded-xl text-sm font-semibold border-2 flex items-center gap-3 text-left" style="${on?'border-color:var(--blue);background:var(--mist);color:var(--ink)':'border-color:var(--line);background:var(--card)'}"><span style="width:20px;height:20px;border-radius:50%;border:2px solid ${on?'var(--blue)':'#B8C4DA'};display:grid;place-items:center;flex-shrink:0"><i style="width:10px;height:10px;border-radius:50%;background:${on?'var(--blue)':'transparent'}"></i></span>${a}</button>`}).join('');
+  $('assignerSelectionGrid').innerHTML=ASSIGNERS.map(a=>{const on=asg===a;return `<button type="button" onclick="asg='${a}';renderAssignForm()" class="p-3.5 rounded-xl text-sm font-semibold border-2 flex items-center gap-3 text-left" style="${on?'border-color:var(--blue);background:var(--mist);color:var(--ink)':'border-color:var(--line);background:var(--card)'}"><span style="width:20px;height:20px;border-radius:50%;border:2px solid ${on?'var(--blue)':'#B8C4DA'};display:grid;place-items:center;flex-shrink:0"><i style="width:10px;height:10px;border-radius:50%;background:${on?'var(--blue)':'transparent'}"></i></span>${a}${asgTok(asgId(a))?'<span class="ml-auto text-xs shrink-0" style="color:var(--ok)">✓ เข้าสู่ระบบแล้ว</span>':''}</button>`}).join('');
   $('teacherSelectionGrid').innerHTML=TEACHERS.map(t=>{
     const on=selT.includes(t.id),n=tasks.filter(j=>j.teacherIds?.includes(t.id)&&j.status!=='completed').length;
     return `<button type="button" onclick="toggleTeacher('${t.id}')" class="p-3 rounded-xl border-2 flex items-center gap-3 text-left" style="${on?'border-color:var(--orange);background:var(--peach)':'border-color:var(--line);background:var(--card)'}">
@@ -894,6 +955,7 @@ function renderAssignForm(){
     <span class="min-w-0 flex-1"><span class="block text-sm font-bold truncate" style="color:var(--ink)">${t.name}</span><span class="block text-xs truncate">ค้าง ${n} งาน</span></span>
     <span class="font-bold" style="color:var(--orange)">${on?'✓':''}</span></button>`}).join('');
   $('wzRecap').textContent=`จาก ${asg} • ครู ${selT.length} ท่าน`;wzLock();
+  try{PushUI.drawAsg()}catch(e){}
 }
 function toggleTeacher(id){
   selT=selT.includes(id)?selT.filter(x=>x!==id):[...selT,id];
@@ -906,9 +968,14 @@ async function handleCreateTask(e){
   if(!title){swal({icon:'warning',title:'กรุณากรอกหัวข้องาน',text:'ต้องระบุหัวข้องานก่อนบันทึก'}).then(()=>$('taskTitle').focus());return}
   if(!$('taskDueDate').value){swal({icon:'warning',title:'กรุณาเลือกกำหนดส่ง'}).then(()=>$('taskDueDate').focus());return}
   if(!selT.length){swal({icon:'warning',title:'ยังไม่ได้เลือกครู',text:'กรุณาลงทะเบียนและเลือกครูผู้รับผิดชอบอย่างน้อย 1 ท่าน'});return}
+  const aid=asgId(asg);
+  if(!asgTok(aid)){wz=0;wzRender();renderAssignForm();swal({icon:'warning',title:'ต้องยืนยันตัวตนก่อน',text:'กด ถัดไป เพื่อใส่ PIN ของ '+asg});return}
   const files=[...pend],b=busy('กำลังบันทึกงาน…'),errs=[];let t;
-  try{t=await gs('api_createTask',{title,note:$('taskNote').value.trim(),assigner:asg,teacherIds:[...selT],dueDate:$('taskDueDate').value,urgency:document.querySelector('input[name=urgency]:checked').value})}
-  catch(err){b.done();swal({icon:'error',title:'บันทึกงานไม่สำเร็จ',text:errMsg(err)});return}
+  try{t=await gs('api_createTask',{title,note:$('taskNote').value.trim(),assigner:asg,teacherIds:[...selT],dueDate:$('taskDueDate').value,urgency:document.querySelector('input[name=urgency]:checked').value},asgTok(aid))}
+  catch(err){
+    b.done();
+    if(/เข้าสู่ระบบใหม่/.test(errMsg(err))){setAsgTok(aid,null);wz=0;wzRender();renderAssignForm();swal({icon:'warning',title:'กรุณาใส่ PIN ใหม่',text:'การยืนยันตัวตนของ '+asg+' หมดอายุ กด ถัดไป เพื่อใส่ PIN แล้วบันทึกอีกครั้ง (ข้อมูลที่กรอกยังอยู่)'});return}
+    swal({icon:'error',title:'บันทึกงานไม่สำเร็จ',text:errMsg(err)});return}
   for(let i=0;i<files.length;i++){b.set(`อัปโหลดไฟล์ ${i+1}/${files.length}: ${files[i].name}`);try{t.files.push(await uploadFile(t.id,files[i].blob))}catch(err){errs.push(files[i].name+': '+errMsg(err))}}
   tasks.unshift(t);b.done();
   $('taskTitle').value='';$('taskNote').value='';selT=[];pend=[];renderPend();
@@ -1211,6 +1278,65 @@ var PushUI=(function(){
     if(note)h+='<div class="pn">'+note.replace(/&/g,'&amp;').replace(/</g,'&lt;')+'</div>';
     el.innerHTML=h;
   }
+  /* ---- แจ้งเตือนฝั่งผู้มอบหมาย (ตำแหน่ง): เด้งเตือนเมื่อครูกดรับทราบงานที่ตำแหน่งนั้นมอบหมาย ---- */
+  var KA='edutask_push_asg_v1',busyA=false,noteA='',lastA=null;
+  function asgSaved(){try{return JSON.parse(localStorage.getItem(KA)||'null')}catch(e){return null}}
+  function asgStore(v){try{v?localStorage.setItem(KA,JSON.stringify(v)):localStorage.removeItem(KA)}catch(e){}}
+  function drawAsg(){
+    var el=g('asgPush');if(!el)return;
+    var id=asgId(asg),nm=asg,h='';
+    if(asgTok(id)){
+      if(configured){
+        if(isIOS&&!standalone()){
+          h='<div class="pc"><span class="em">🔔</span><div class="tx"><b>รับแจ้งเตือนเมื่อครูรับทราบ</b><span class="s">บน iPhone ต้องติดตั้งแอปลงหน้าจอก่อน แล้วเปิดจากไอคอนบนหน้าจอ</span></div><button type="button" class="btn" onclick="EduInstall.go()">วิธีติดตั้ง</button></div>';
+        }else if(supported){
+          var s=asgSaved(),on=Notification.permission==='granted'&&s&&s.asgId===id;
+          h='<div class="pc"><span class="em">'+(on?'🔔':'🔕')+'</span><div class="tx"><b>แจ้งเตือนเมื่อครูรับทราบงาน</b><span class="s">'+
+            (on?'เปิดอยู่ – จะเด้งเตือนเมื่อครูกดรับทราบงานที่ '+esc2(nm)+' มอบหมาย':'รับแจ้งเตือนเมื่อครูกดรับทราบงานที่ '+esc2(nm)+' มอบหมาย แม้ไม่ได้เปิดแอป')+'</span></div>'+
+            (on?'<button type="button" class="btn2" onclick="PushUI.asgDisable()"'+(busyA?' disabled':'')+'>ปิด</button>'
+               :'<button type="button" class="btn" onclick="PushUI.asgEnable()"'+(busyA?' disabled':'')+'>'+(busyA?'กำลังเปิด…':'เปิดแจ้งเตือน')+'</button>')+'</div>';
+          if(Notification.permission==='denied'&&!on)noteA='เบราว์เซอร์ปิดกั้นการแจ้งเตือนของเว็บนี้ไว้ ให้แตะไอคอนกุญแจ/ข้อมูลเว็บไซต์ข้างช่องที่อยู่เว็บ แล้วเลือก อนุญาตการแจ้งเตือน';
+        }
+        if(noteA)h+='<div class="pn">'+esc2(noteA)+'</div>';
+      }
+      h+='<div class="text-right"><button type="button" class="text-xs underline" style="color:var(--txt)" onclick="PushUI.asgLogout()">ออกจากระบบตำแหน่งนี้</button></div>';
+    }
+    if(h!==lastA){el.innerHTML=h;lastA=h}
+  }
+  function esc2(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;')}
+  function asgEnable(){
+    var id=asgId(asg),nm=asg;if(busyA||!supported||!asgTok(id))return;
+    busyA=true;noteA='';drawAsg();
+    Notification.requestPermission().then(function(p){
+      if(p!=='granted')throw new Error('denied');
+      return getTok();
+    }).then(function(tok){
+      if(!tok)throw new Error('ไม่ได้รับโทเคนแจ้งเตือน');
+      return gs('api_registerPush',id,tok,asgTok(id)).then(function(){asgStore({asgId:id,token:tok});toast('เปิดแจ้งเตือนของ '+nm+' แล้ว')});
+    }).catch(function(e){
+      var m=errMsg(e);
+      if(/เข้าสู่ระบบใหม่/.test(m)){setAsgTok(id,null);try{renderAssignForm()}catch(x){}}
+      noteA=(e&&e.message==='denied')?'ยังไม่ได้อนุญาตการแจ้งเตือน ลองกดเปิดอีกครั้งแล้วเลือก อนุญาต':'เปิดแจ้งเตือนไม่สำเร็จ: '+m;
+    }).then(function(){busyA=false;drawAsg()});
+  }
+  function asgDisable(quiet){
+    var s=asgSaved();if(busyA)return Promise.resolve();busyA=true;noteA='';drawAsg();
+    return (s&&s.token?gs('api_unregisterPush',s.token,s.asgId).catch(function(){}):Promise.resolve())
+      .then(function(){if(saved())return;return getMsg().then(function(m){return m.deleteToken()}).catch(function(){})})
+      .then(function(){asgStore(null);busyA=false;if(quiet!==true)toast('ปิดแจ้งเตือนแล้ว');drawAsg()});
+  }
+  function asgLogout(){
+    var id=asgId(asg),nm=asg,tok=asgTok(id),s=asgSaved();
+    Promise.resolve(s&&s.asgId===id?asgDisable(true):null).then(function(){
+      if(tok)gs('api_logout',id,tok).catch(function(){});
+      setAsgTok(id,null);toast('ออกจากระบบ '+nm+' แล้ว');try{renderAssignForm()}catch(x){}drawAsg();
+    });
+  }
+  function asgSync(){
+    var s=asgSaved();
+    if(!configured||!supported||!s||Notification.permission!=='granted'||!asgTok(s.asgId))return;
+    getTok().then(function(tok){if(tok&&tok!==s.token)return gs('api_registerPush',s.asgId,tok,asgTok(s.asgId)).then(function(){asgStore({asgId:s.asgId,token:tok})})}).catch(function(){});
+  }
   function enable(){
     if(busy||!me||!supported)return;
     var t=me;busy=true;note='';draw();
@@ -1226,8 +1352,8 @@ var PushUI=(function(){
   }
   function disable(){
     var s=saved();if(busy)return;busy=true;note='';draw();
-    (s&&s.token?gs('api_unregisterPush',s.token).catch(function(){}):Promise.resolve())
-      .then(function(){return getMsg().then(function(m){return m.deleteToken()}).catch(function(){})})
+    (s&&s.token?gs('api_unregisterPush',s.token,s.teacherId).catch(function(){}):Promise.resolve())
+      .then(function(){if(asgSaved())return;return getMsg().then(function(m){return m.deleteToken()}).catch(function(){})})
       .then(function(){store(null);busy=false;toast('ปิดแจ้งเตือนแล้ว');draw()});
   }
   /* เปิดแอปมาแล้ว ถ้าเคยเปิดแจ้งเตือนไว้ → ตรวจว่าโทเคนยังตรงกัน (เปลี่ยนแล้วลงทะเบียนใหม่เงียบ ๆ) */
@@ -1245,9 +1371,10 @@ var PushUI=(function(){
   }
   window.addEventListener('load',function(){
     if(/[?&]go=my/.test(location.search))setTimeout(function(){try{switchTab('tab-my')}catch(e){}},400);
-    setTimeout(silentSync,4000);
+    if(/[?&]go=list/.test(location.search))setTimeout(function(){try{switchTab('tab-list')}catch(e){}},400);
+    setTimeout(function(){silentSync();asgSync()},4000);
   });
-  return{enable:enable,disable:disable,draw:draw,badge:badge};
+  return{enable:enable,disable:disable,draw:draw,badge:badge,drawAsg:drawAsg,asgEnable:asgEnable,asgDisable:asgDisable,asgLogout:asgLogout};
 })();
 /* วาดการ์ดแจ้งเตือน + อัปเดตตัวเลขบนไอคอน ทุกครั้งที่หน้า "งานของฉัน" ถูกวาดใหม่ */
 if(typeof renderMy==='function'){var _renderMy=renderMy;renderMy=function(){_renderMy.apply(this,arguments);try{PushUI.draw();PushUI.badge()}catch(e){}}}
