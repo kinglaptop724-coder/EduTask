@@ -203,6 +203,9 @@ select.inp{appearance:none;-webkit-appearance:none;padding-right:40px;background
 
  /* หน้าต่างมอบหมายงาน */
  .pop::before{content:'';display:block;width:40px;height:4px;border-radius:99px;background:var(--line);margin:-8px auto 14px}
+ /* หน้าต่างมอบหมายงานบนมือถือ: ยืดให้สูงเกือบเต็มจอ ไม่ให้ลอยต่ำ ปุ่มถัดไปอยู่ท้ายแผ่นเสมอ */
+ #tab-assign .pop{display:flex;flex-direction:column;min-height:88vh;min-height:88dvh}
+ #tab-assign .pop form{flex:1}
  .btn,.btn2{min-height:46px}
  .btn2[class*="!py"]{min-height:36px}
 
