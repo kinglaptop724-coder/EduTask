@@ -1242,7 +1242,7 @@ function drawPin(t){
     ${f('pinIn',first?'ตั้ง PIN':'PIN',first?'new-password':'current-password')}${first?f('pinIn2','ยืนยัน PIN อีกครั้ง','new-password'):''}
     ${locked?`<p class="text-sm mb-3" role="alert" style="color:#E5484D">ถูกล็อกชั่วคราว ลองใหม่ในอีก ${Math.ceil(pinInfo.wait/60)} นาที</p>`:''}
     ${pinErr?`<p class="text-sm mb-3" role="alert" style="color:#E5484D">${esc(pinErr)}</p>`:''}`}
-    <div class="sw-b" style="margin-top:${ready?'6px':'18px'}"><button type="button" class="sw-no" style="flex:.7" onclick="cancelPin()" ${pinBusy?'disabled':''}>ยกเลิก</button>${ready?`<button type="button" class="sw-ok" onclick="submitPin()" ${pinBusy||locked?'disabled':''}>${pinBusy?'กำลังตรวจสอบ…':first?'ตั้ง PIN และเข้าใช้งาน':'เข้าสู่ระบบ'}</button>`:''}</div>
+    <div class="sw-b" style="margin-top:${ready?'6px':'18px'}"><button type="button" class="sw-no" style="flex:${ready?.7:1}" onclick="cancelPin()" ${pinBusy?'disabled':''}>ยกเลิก</button>${ready?`<button type="button" class="sw-ok" onclick="submitPin()" ${pinBusy||locked?'disabled':''}>${pinBusy?'กำลังตรวจสอบ…':first?'ตั้ง PIN และเข้าใช้งาน':'เข้าสู่ระบบ'}</button>`:''}</div>
   </div>`;
   setTimeout(()=>{const i=$('pinIn');if(i&&!i.disabled)i.focus()},50);
 }
