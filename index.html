@@ -337,9 +337,43 @@ select.inp{appearance:none;-webkit-appearance:none;padding-right:40px;background
 #asgPin{position:fixed;inset:0;z-index:150;display:flex;align-items:center;justify-content:center;padding:20px;background:rgba(15,26,46,.55);backdrop-filter:blur(4px)}
 #asgPin .sw-box{transform:none}
 #unv{position:fixed;inset:0;z-index:150;display:flex;align-items:center;justify-content:center;padding:20px;background:rgba(15,26,46,.55);backdrop-filter:blur(4px)}
-#unv .sw-box{transform:none;width:min(460px,100%);text-align:left}
-.unv-list{max-height:48vh;overflow-y:auto;overscroll-behavior:contain;margin-top:12px;display:grid;gap:8px;padding-right:4px}
-.unv-row{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:14px;background:var(--mist)}
+#unv .sw-box{transform:none;width:min(480px,100%);text-align:left;padding:22px 18px 18px;display:flex;flex-direction:column;max-height:min(90vh,760px)}
+.unv-hd{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+.unv-hd p{margin:2px 0 0;font-size:13px}
+.unv-x{width:36px;height:36px;border-radius:50%;border:0;background:var(--mist);color:var(--blue);font-size:22px;line-height:1;cursor:pointer;flex-shrink:0}
+.unv-sum{margin-top:14px;padding:14px;border-radius:18px;background:var(--mist)}
+.unv-sum-t{display:flex;align-items:baseline;justify-content:space-between;gap:8px}
+.unv-pct{font-size:28px;font-weight:800;color:var(--ink);line-height:1}
+.unv-pct small{font-size:14px;font-weight:700}
+.unv-bar{height:10px;border-radius:99px;background:rgba(229,72,77,.22);margin-top:10px;overflow:hidden}
+.unv-bar i{display:block;height:100%;min-width:6px;border-radius:99px;background:var(--ok);transition:width .5s cubic-bezier(.2,.8,.2,1)}
+.unv-leg{display:flex;gap:16px;margin-top:10px;font-size:13px;flex-wrap:wrap}
+.unv-leg span{display:inline-flex;align-items:center;gap:6px}
+.unv-leg i{width:10px;height:10px;border-radius:50%;display:inline-block}
+.unv-tabs{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;margin-top:14px;padding:4px;border-radius:14px;background:var(--mist)}
+.unv-tab{border:0;background:transparent;border-radius:11px;padding:8px 4px;font-size:13px;font-weight:600;color:var(--txt);cursor:pointer;min-height:40px;transition:background .15s,color .15s}
+.unv-tab b{margin-left:4px;font-weight:700}
+.unv-tab[aria-selected=true]{background:var(--card);color:var(--ink);box-shadow:0 1px 3px rgba(30,58,110,.18)}
+.unv-q{width:100%;margin-top:10px;min-height:42px;border-radius:12px;border:1px solid var(--line);background:var(--card);color:var(--ink);padding:8px 12px;font-size:14px;font-family:inherit}
+.unv-q:focus{outline:2px solid var(--blue);outline-offset:1px}
+.unv-list{flex:1;min-height:120px;overflow-y:auto;overscroll-behavior:contain;margin-top:10px;display:grid;gap:8px;align-content:start;padding:2px 4px 2px 0}
+.unv-row{display:flex;align-items:center;gap:12px;padding:10px 12px 10px 10px;border-radius:16px;background:var(--card);border:1px solid var(--line);border-left:5px solid var(--st)}
+.unv-row.no{--st:#E5484D}
+.unv-row.ok{--st:var(--ok)}
+.unv-av{position:relative;width:46px;height:46px;border-radius:14px;flex-shrink:0;display:grid;place-items:center;color:#fff;font-weight:700;font-size:14px}
+.unv-av em{position:absolute;right:-5px;bottom:-5px;width:20px;height:20px;border-radius:50%;display:grid;place-items:center;border:2px solid var(--card);color:#fff;font-style:normal}
+.unv-row.no .unv-av em{background:#E5484D}
+.unv-row.ok .unv-av em{background:var(--ok)}
+.unv-nm{font-size:14px;font-weight:700;color:var(--ink);display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.unv-sb{font-size:12px;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.unv-st{display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex-shrink:0}
+.unv-badge{display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:99px;font-size:12px;font-weight:700;white-space:nowrap}
+.unv-badge.ok{background:rgba(31,169,122,.15);color:#13805C}
+.unv-badge.no{background:rgba(229,72,77,.14);color:#C93338}
+.unv-open{font-size:11px;font-weight:600;color:#B86E00}
+@media (prefers-color-scheme:dark){:root:not([data-theme=light]) .unv-badge.ok{color:#5FE0B2}:root:not([data-theme=light]) .unv-badge.no{color:#FF8A8E}:root:not([data-theme=light]) .unv-open{color:#FFB84D}}
+.unv-empty{padding:28px 8px;text-align:center;font-size:14px}
+@media (max-width:380px){.unv-st .unv-open{display:none}.unv-av{width:40px;height:40px}}
 </style>
 </head>
 <body>
@@ -1081,24 +1115,49 @@ async function openUnverified(){
   showUnverified(r.v);
 }
 function showUnverified(d){
-  const list=d.list||[],el=document.createElement('div');
-  el.id='unv';el.setAttribute('role','dialog');el.setAttribute('aria-modal','true');el.setAttribute('aria-labelledby','unvT');
+  const total=d.total||0,el=document.createElement('div');
+  /* รายชื่อทุกคน (all) มาจากเซิร์ฟเวอร์รุ่นใหม่; ถ้ายังเป็นรุ่นเก่า ให้สร้างจาก TEACHERS */
+  let all=d.all;
+  if(!all){const no={};(d.list||[]).forEach(t=>{no[t.id]=1});
+    all=TEACHERS.map(t=>no[t.id]?null:{id:t.id,name:t.name,subject:t.subject||'',open:0,verified:true}).filter(Boolean).concat((d.list||[]).map(t=>Object.assign({verified:false},t)))}
+  const list=all.filter(t=>!t.verified),okN=all.length-list.length,pct=all.length?Math.round(okN*100/all.length):0;
   const msg=list.length?'ครูที่ยังไม่ยืนยันตัวตน (ยังไม่ตั้ง PIN) ตามรายชื่อนี้ กรุณาเข้าระบบ EduTask ที่เมนู "งานของฉัน" เลือกชื่อตัวเอง แล้วตั้ง PIN\n\n'+list.map((t,i)=>(i+1)+'. '+t.name+(t.open?' (งานค้าง '+t.open+')':'')).join('\n'):'';
-  el.innerHTML=`<div class="sw-box"><h2 class="sw-t" id="unvT">ครูที่ยังไม่ยืนยันตัวตน</h2><p class="sw-x" style="text-align:left">ยืนยันแล้ว <b style="color:var(--ok)">${d.total-list.length}</b> จาก ${d.total} ท่าน • ยังไม่ยืนยัน <b style="color:#E5484D">${list.length}</b> ท่าน<br><span class="text-xs">"ยืนยันตัวตน" = เคยตั้ง PIN เข้าใช้งานแล้ว</span></p>`+
-    (list.length?`<div class="unv-list">${list.map(t=>{const x=TEACHERS.find(a=>a.id===t.id)||{initials:'?',c:'#2E5FBF'};return `<div class="unv-row"><span class="tile !w-9 !h-9 !text-xs font-bold" style="${tbgFlat(x)}">${esc(x.initials)}</span><span class="min-w-0 flex-1"><b class="block text-sm truncate" style="color:var(--ink)">${esc(t.name)}</b><span class="block text-xs truncate">${esc(t.subject)}</span></span>${t.open?`<span class="pill shrink-0" style="background:#F29A1F1A;color:#B86E00">ค้าง ${t.open}</span>`:''}</div>`}).join('')}</div>`:`<p class="text-sm py-6 text-center">ครูทุกท่านยืนยันตัวตนแล้ว 🎉</p>`)+
+  const ico=(v)=>v?'<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>':'<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" aria-hidden="true"><path d="M12 6v7M12 18v.5"/></svg>';
+  el.id='unv';el.setAttribute('role','dialog');el.setAttribute('aria-modal','true');el.setAttribute('aria-labelledby','unvT');
+  el.innerHTML=`<div class="sw-box"><div class="unv-hd"><div><h2 class="sw-t" id="unvT">สถานะการยืนยันตัวตนของครู</h2><p>“ยืนยันตัวตน” = เคยตั้ง PIN เข้าใช้งานแล้ว</p></div><button type="button" class="unv-x" aria-label="ปิด">×</button></div>`+
+    `<div class="unv-sum"><div class="unv-sum-t"><span class="unv-pct">${pct}<small>%</small></span><span class="text-sm">ยืนยันแล้ว <b style="color:var(--ink)">${okN}</b> จาก ${all.length||total} ท่าน</span></div>`+
+    `<div class="unv-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${pct}" aria-label="สัดส่วนครูที่ยืนยันตัวตนแล้ว"><i style="width:${pct}%"></i></div>`+
+    `<div class="unv-leg"><span><i style="background:var(--ok)"></i>ยืนยันแล้ว <b style="color:var(--ok)">${okN}</b></span><span><i style="background:#E5484D"></i>ยังไม่ยืนยัน <b style="color:#E5484D">${list.length}</b></span></div></div>`+
+    `<div class="unv-tabs" role="tablist"><button type="button" class="unv-tab" role="tab" data-t="no">ยังไม่ยืนยัน<b>${list.length}</b></button><button type="button" class="unv-tab" role="tab" data-t="ok">ยืนยันแล้ว<b>${okN}</b></button><button type="button" class="unv-tab" role="tab" data-t="all">ทั้งหมด<b>${all.length}</b></button></div>`+
+    `<input type="search" class="unv-q" placeholder="ค้นหาชื่อหรือกลุ่มสาระ" aria-label="ค้นหาครู" autocomplete="off"><div class="unv-list" role="list"></div>`+
     `<div class="sw-b">${list.length?'<button type="button" class="sw-no unv-cp">คัดลอกข้อความ</button>':''}<button type="button" class="sw-ok unv-ok">ปิด</button></div></div>`;
-  let done=false;
+  let tab=list.length?'no':'all',q='',done=false;
+  const box=el.querySelector('.unv-list'),tabs=[...el.querySelectorAll('.unv-tab')];
+  function row(t){
+    const x=TEACHERS.find(a=>a.id===t.id)||{initials:'?'},v=t.verified,c=v?'ok':'no';
+    return `<div class="unv-row ${c}" role="listitem"><span class="unv-av" style="${tbgFlat(x)}">${esc(x.initials||'?')}<em>${ico(v)}</em></span><span class="min-w-0 flex-1"><b class="unv-nm">${esc(t.name)}</b><span class="unv-sb">${esc(t.subject||'')}</span></span><span class="unv-st"><span class="unv-badge ${c}">${v?'ยืนยันแล้ว':'ยังไม่ยืนยัน'}</span>${t.open?`<span class="unv-open">งานค้าง ${t.open}</span>`:''}</span></div>`;
+  }
+  function draw(){
+    tabs.forEach(b=>b.setAttribute('aria-selected',b.dataset.t===tab?'true':'false'));
+    const k=q.trim().toLowerCase();
+    let rows=tab==='no'?list:tab==='ok'?all.filter(t=>t.verified):all.slice().sort((a,b)=>(a.verified-b.verified)||b.open-a.open||String(a.name).localeCompare(b.name,'th'));
+    if(k)rows=rows.filter(t=>(t.name+' '+(t.subject||'')).toLowerCase().includes(k));
+    box.innerHTML=rows.length?rows.map(row).join(''):`<p class="unv-empty">${k?'ไม่พบรายชื่อที่ค้นหา':tab==='no'?'ครูทุกท่านยืนยันตัวตนแล้ว 🎉':'ยังไม่มีครูที่ยืนยันตัวตน'}</p>`;
+    box.scrollTop=0;
+  }
+  tabs.forEach(b=>b.onclick=()=>{tab=b.dataset.t;draw()});
+  el.querySelector('.unv-q').oninput=e=>{q=e.target.value;draw()};
   const key=e=>{if(e.key==='Escape'){e.preventDefault();e.stopImmediatePropagation();fin()}};
   function fin(){if(done)return;done=true;document.removeEventListener('keydown',key,true);el.remove();
     document.body.style.overflow=document.querySelector('#tab-assign:not(.hidden),#regModal:not(.hidden),#teacherModal:not(.hidden),#taskModal:not(.hidden)')?'hidden':''}
   el.onclick=e=>{if(e.target===el)fin()};
-  el.querySelector('.unv-ok').onclick=fin;
+  el.querySelector('.unv-ok').onclick=fin;el.querySelector('.unv-x').onclick=fin;
   const cp=el.querySelector('.unv-cp');
   if(cp)cp.onclick=async()=>{
     try{await navigator.clipboard.writeText(msg);toast('คัดลอกแล้ว นำไปวางใน LINE ได้เลย')}
     catch(e){const ta=document.createElement('textarea');ta.value=msg;document.body.appendChild(ta);ta.select();try{document.execCommand('copy');toast('คัดลอกแล้ว นำไปวางใน LINE ได้เลย')}catch(_){swal({icon:'error',title:'คัดลอกไม่สำเร็จ'})}ta.remove()}
   };
-  document.addEventListener('keydown',key,true);document.body.appendChild(el);document.body.style.overflow='hidden';
+  draw();document.addEventListener('keydown',key,true);document.body.appendChild(el);document.body.style.overflow='hidden';
   el.querySelector('.unv-ok').focus();
 }
 function logoutMe(){
