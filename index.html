@@ -31,6 +31,7 @@ body{background:var(--frame);color:var(--txt);min-height:100vh;padding:22px;padd
 .nv{color:#C9D9F7;font-size:15px;text-align:left;padding:12px 14px;border:0;background:none;cursor:pointer;border-radius:16px;display:flex;align-items:center;gap:10px}
 .nv .ic{font-size:18px;line-height:1;font-style:normal;width:22px;text-align:center}
 .nv:hover{color:#fff}.nv.on{color:#1E3A6E;font-weight:700;background:#FFCB2E;box-shadow:0 6px 14px -6px rgba(255,203,46,.7)}
+.nv.cta{color:#1E3A6E;font-weight:700;background:#FFCB2E;box-shadow:0 6px 14px -6px rgba(255,203,46,.7)}.nv.cta:hover{color:#1E3A6E;filter:brightness(.96)}
 .nv:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--orange);outline-offset:2px}
 .logo{width:40px;height:40px;border-radius:12px;background:var(--orange);color:#fff;font-weight:700;display:grid;place-items:center;font-size:13px}
 .wrap{flex:1;min-width:0;position:relative;overflow:hidden}
@@ -121,7 +122,7 @@ main .hdr,.sch-top{display:none}
  .nv{flex:1;flex-direction:column;justify-content:center;gap:2px;padding:8px 2px;min-height:58px;font-size:11.5px;text-align:center}
  .side nav{margin-top:0;margin-left:0}
  .side>div:last-child{display:none}
- .nv.on{box-shadow:none}
+ .nv.on,.nv.cta{box-shadow:none}
  .content{padding:18px 14px calc(104px + env(safe-area-inset-bottom,0px))}
  .inp{font-size:16px;min-height:46px}
  #tab-assign,#regModal,#teacherModal,#taskModal{align-items:flex-end;padding:0}
@@ -360,9 +361,9 @@ select.inp{appearance:none;-webkit-appearance:none;padding-right:40px;background
 <aside class="side">
   <div class="brand flex items-center gap-3"><div class="logo shrink-0">ET</div><div class="sch-side"><b class="block text-white leading-tight">EduTask</b><span class="block text-xs leading-snug mt-0.5" style="color:#C9D9F7">โรงเรียนอนุบาลชุมชนหนองบัวแดง</span></div></div>
   <nav>
+    <button class="nv cta" id="nav-tab-assign" onclick="switchTab('tab-assign')"><i class="ic"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></i>มอบหมายงาน</button>
     <button class="nv on" id="nav-tab-list" onclick="switchTab('tab-list')"><i class="ic"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h10"/></svg></i>งานทั้งหมด</button>
     <button class="nv" id="nav-tab-dashboard" onclick="switchTab('tab-dashboard')"><i class="ic"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 20V10M12 20V4M19 20v-7"/></svg></i>แดชบอร์ด</button>
-    <button class="nv" id="nav-tab-assign" onclick="switchTab('tab-assign')"><i class="ic"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></i>มอบหมายงาน</button>
     <button class="nv" id="nav-tab-teachers" onclick="switchTab('tab-teachers')"><i class="ic"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg></i>งานรายบุคคล</button>
     <button class="nv" id="nav-tab-my" onclick="switchTab('tab-my')"><i class="ic"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="4"/><path d="M2 21c0-4 3-6 7-6s7 2 7 6"/><path d="M16 11l2 2 4-4"/></svg></i>งานของฉัน</button>
   </nav>
