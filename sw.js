@@ -3,7 +3,7 @@
  * - ไม่แตะต้องการเรียก Apps Script (ข้อมูลงานต้องสดเสมอ)
  * - รับแจ้งเตือน (push) จาก Firebase Cloud Messaging แล้วแสดงบนมือถือ + ตั้งตัวเลขบนไอคอน
  * - เปลี่ยนเลข VERSION เมื่อต้องการบังคับให้เครื่องผู้ใช้ล้างแคชเก่า */
-const VERSION = 'edutask-v5';
+const VERSION = 'edutask-v6';
 const SHELL = [
   './',
   'index.html',
