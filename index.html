@@ -253,6 +253,36 @@ select.inp{appearance:none;-webkit-appearance:none;padding-right:40px;background
 .tfl{padding:10px 6px;border-radius:14px;border:2px solid transparent;background:var(--mist);text-align:center;cursor:pointer}
 .tfl.on{border-color:var(--blue);background:var(--card)}
 
+/* ===== กล่อง "งานของครู" ===== */
+.tp-card{display:flex;gap:16px;align-items:center;padding:16px;border-radius:22px;background:linear-gradient(135deg,var(--mist),var(--card));border:1px solid var(--line)}
+.tp-av{width:76px;height:76px;border-radius:22px;flex-shrink:0;display:grid;place-items:center;color:#fff;font-size:26px;font-weight:700;box-shadow:0 8px 18px -8px rgba(30,58,110,.5);border:3px solid var(--card)}
+.tp-nm{font-size:20px;font-weight:800;line-height:1.3;color:var(--ink);overflow-wrap:anywhere}
+.tp-role{display:inline-block;margin-top:6px;padding:3px 12px;border-radius:99px;font-size:12px;font-weight:700;background:var(--peach);color:#B86E00}
+.tp-edu{margin-top:8px;display:grid;gap:3px;font-size:12px;line-height:1.5}
+.tp-edu span{display:flex;gap:6px;align-items:flex-start}
+.tp-edu span::before{content:"";width:6px;height:6px;border-radius:50%;background:var(--sky);margin-top:7px;flex-shrink:0}
+.tp-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:14px}
+.tp-st{position:relative;padding:12px 8px 10px;border-radius:18px;background:var(--card);border:2px solid var(--line);text-align:center;cursor:pointer;transition:border-color .15s,background .15s,transform .15s}
+.tp-st:hover{transform:translateY(-1px)}
+.tp-st span{display:block;font-size:12px;font-weight:600;color:var(--txt)}
+.tp-st b{display:block;font-size:26px;line-height:1.2;font-weight:800;margin-top:2px}
+.tp-st i{position:absolute;top:10px;right:10px;width:8px;height:8px;border-radius:50%;background:var(--c)}
+.tp-st.on{border-color:var(--c);background:color-mix(in srgb,var(--c) 10%,var(--card))}
+.tp-st:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
+.tp-pg{margin-top:14px;padding:12px 14px;border-radius:16px;background:var(--mist)}
+.tp-pg-t{display:flex;justify-content:space-between;align-items:baseline;gap:8px;font-size:13px;font-weight:700;color:var(--ink)}
+.tp-pg-t small{font-weight:500;color:var(--txt);font-size:12px}
+.tp-bar{height:10px;border-radius:99px;background:var(--card);margin-top:8px;overflow:hidden}
+.tp-bar i{display:block;height:100%;border-radius:99px;background:var(--orange);transition:width .5s cubic-bezier(.2,.8,.2,1)}
+.tp-bar i.full{background:var(--ok)}
+.tp-lb{margin:18px 2px 0;display:flex;align-items:center;justify-content:space-between;font-size:14px;font-weight:700;color:var(--ink)}
+.tp-lb small{font-weight:500;font-size:12px;color:var(--txt)}
+.tp-empty{padding:34px 16px;text-align:center;border-radius:22px;border:2px dashed var(--line);background:var(--card)}
+.tp-empty .ic{width:64px;height:64px;margin:0 auto 12px;border-radius:50%;display:grid;place-items:center;background:var(--mist);color:var(--blue)}
+.tp-empty b{display:block;font-size:15px;color:var(--ink)}
+.tp-empty p{margin:4px 0 0;font-size:13px;line-height:1.6;overflow-wrap:anywhere}
+@media (max-width:480px){.tp-card{flex-direction:column;text-align:center;padding:18px 14px}.tp-edu span{text-align:left}.tp-st b{font-size:22px}}
+
 /* ===== รายการงานแบบกะทัดรัด ===== */
 .trw{display:flex;align-items:center;gap:12px;padding:14px 14px 14px 18px;cursor:pointer;position:relative;overflow:hidden;transition:transform .2s,box-shadow .2s}
 .trw:hover{transform:translateY(-2px);box-shadow:0 12px 24px -12px rgba(30,58,110,.35)}
@@ -1067,13 +1097,16 @@ function openTeacher(id){
 function closeTeacher(){tPop=false;$('teacherModal').classList.add('hidden');document.body.style.overflow=''}
 function renderTeacherPop(){
   const t=TEACHERS.find(x=>x.id===tab3);if(!t){closeTeacher();return}
-  const s=tStats(t),box=$('teacherModalBody'),sc=box.scrollTop;
+  const s=tStats(t),box=$('teacherModalBody'),sc=box.scrollTop,n=s.m.length;
   const fl=tFlt==='open'?s.open:tFlt==='done'?s.m.filter(j=>j.status==='completed'):s.m;
-  const sb=(k,l,v,c)=>`<button type="button" onclick="tFlt='${k}';renderTeacherPop()" class="tfl ${tFlt===k?'on':''}" aria-pressed="${tFlt===k}"><span class="block text-xs">${l}</span><b class="block text-lg" style="color:${c}">${v}</b></button>`;
-  $('teacherProfileCard').innerHTML=`<div class="flex items-center gap-3"><span class="tile !w-14 !h-14 font-bold" style="${tbgFlat(t)}">${esc(t.initials)}</span><div class="min-w-0"><h3 class="text-lg font-bold leading-snug" style="color:var(--ink)">${esc(t.name)}</h3><p class="text-sm">${esc(t.subject)}</p>${t.major?`<p class="text-xs mt-0.5">${esc(t.major)}</p>`:''}${t.custom?`<button type="button" onclick="removeTeacher('${t.id}')" class="text-xs mt-1 underline" style="color:var(--txt)">ลบรายชื่อครู</button>`:''}</div></div>
-   <div class="grid grid-cols-3 gap-2 mt-4">${sb('all','ทั้งหมด',s.m.length,'var(--ink)')}${sb('open','ค้างส่ง',s.open.length,'var(--orange)')}${sb('done','เสร็จแล้ว',s.done,'var(--ok)')}</div>
-   <div class="mt-4"><div class="flex justify-between text-xs font-semibold mb-1"><span>ความคืบหน้า</span><span style="color:var(--ok)">${s.pc}%</span></div><div class="h-2.5 rounded-full" style="background:var(--mist)"><div class="h-full rounded-full" style="width:${s.pc}%;background:var(--orange)"></div></div></div>`;
-  $('teacherTasksContainer').innerHTML=fl.length?fl.map(taskCard).join(''):`<div class="card p-8 text-center text-sm">${s.m.length?'ไม่มีงานในหมวดนี้':'ยังไม่มีงานที่มอบหมายให้ '+esc(t.name)}</div>`;
+  const sb=(k,l,v,c)=>`<button type="button" onclick="tFlt='${k}';renderTeacherPop()" class="tp-st ${tFlt===k?'on':''}" style="--c:${c}" aria-pressed="${tFlt===k}"><i></i><span>${l}</span><b style="color:${c}">${v}</b></button>`;
+  const edu=t.major?String(t.major).split('|').map(x=>x.trim()).filter(Boolean):[];
+  const lbl=tFlt==='open'?'งานค้างส่ง':tFlt==='done'?'งานที่เสร็จแล้ว':'งานทั้งหมด';
+  $('teacherProfileCard').innerHTML=`<div class="tp-card"><span class="tp-av" style="${tbgFlat(t)}">${esc(t.initials)}</span><div class="min-w-0"><h3 class="tp-nm">${esc(t.name)}</h3>${t.subject?`<span class="tp-role">${esc(t.subject)}</span>`:''}${edu.length?`<div class="tp-edu">${edu.map(x=>`<span>${esc(x)}</span>`).join('')}</div>`:''}${t.custom?`<button type="button" onclick="removeTeacher('${t.id}')" class="text-xs mt-2 underline" style="color:var(--txt)">ลบรายชื่อครู</button>`:''}</div></div>
+   <div class="tp-stats">${sb('all','ทั้งหมด',n,'var(--blue)')}${sb('open','ค้างส่ง',s.open.length,'var(--orange)')}${sb('done','เสร็จแล้ว',s.done,'var(--ok)')}</div>
+   <div class="tp-pg"><div class="tp-pg-t"><span>ความคืบหน้า</span>${n?`<span style="color:${s.pc>=100?'var(--ok)':'var(--ink)'}">${s.pc}% <small>(เสร็จ ${s.done} จาก ${n} งาน)</small></span>`:'<small>ยังไม่มีงาน</small>'}</div><div class="tp-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${n?s.pc:0}" aria-label="ความคืบหน้าของงาน"><i class="${n&&s.pc>=100?'full':''}" style="width:${n?s.pc:0}%"></i></div></div>
+   ${n?`<div class="tp-lb"><span>${lbl}</span><small>${fl.length} รายการ</small></div>`:''}`;
+  $('teacherTasksContainer').innerHTML=fl.length?fl.map(taskCard).join(''):`<div class="tp-empty"><div class="ic"><svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="4" width="14" height="17" rx="3"/><path d="M9 4.5h6M9 11h6M9 15h4"/></svg></div><b>${n?'ไม่มีงานในหมวดนี้':'ยังไม่มีงานที่มอบหมาย'}</b><p>${n?'ลองเลือกหมวดอื่นด้านบน':'เมื่อมีการมอบหมายงานให้ '+esc(t.name)+' งานจะแสดงที่นี่'}</p></div>`;
   box.scrollTop=sc;
 }
 
