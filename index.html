@@ -366,6 +366,20 @@ select.inp{appearance:none;-webkit-appearance:none;padding-right:40px;background
 #asgPush:empty{display:none}
 #asgPin{position:fixed;inset:0;z-index:150;display:flex;align-items:center;justify-content:center;padding:20px;background:rgba(15,26,46,.55);backdrop-filter:blur(4px)}
 #asgPin .sw-box{transform:none}
+/* ป๊อปอัป PIN ของหน้า "งานของฉัน" */
+#myPin{position:fixed;inset:0;z-index:150;display:flex;align-items:center;justify-content:center;padding:20px;background:rgba(15,26,46,.55);backdrop-filter:blur(4px);overflow-y:auto}
+#myPin .sw-box{transform:none;width:min(400px,100%);margin:auto}
+#myPin.fresh{animation:mpfade .2s both}
+#myPin.fresh .sw-box{animation:popin .35s cubic-bezier(.2,.9,.3,1.2) both}
+@keyframes mpfade{from{opacity:0}to{opacity:1}}
+@media (prefers-reduced-motion:reduce){#myPin.fresh,#myPin.fresh .sw-box{animation:none}}
+.mp-av{width:76px;height:76px;border-radius:22px;font-size:26px;margin:0 auto 14px;box-shadow:0 10px 22px -10px rgba(46,95,191,.6)}
+.mp-note{background:var(--mist);border-radius:14px;padding:12px 14px;font-size:13.5px;line-height:1.7;text-align:left;margin:16px 0 18px}
+.mp-f{text-align:left;margin-bottom:14px}
+.mp-f label{display:block;font-size:13.5px;font-weight:600;color:var(--ink);margin-bottom:6px}
+.pin-in{font-size:24px;font-weight:700;letter-spacing:.5em;padding:12px 14px 12px calc(14px + .5em);border:1.5px solid var(--line);border-radius:14px;text-align:center;color:var(--ink)}
+.pin-in:focus{border-color:var(--blue)}
+.pin-in:disabled{opacity:.5}
 #unv{position:fixed;inset:0;z-index:150;display:flex;align-items:center;justify-content:center;padding:20px;background:rgba(15,26,46,.55);backdrop-filter:blur(4px)}
 #unv .sw-box{transform:none;width:min(480px,100%);text-align:left;padding:22px 18px 18px;display:flex;flex-direction:column;max-height:min(90vh,760px)}
 .unv-hd{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
@@ -1119,7 +1133,7 @@ function authTok(id){const a=getAuth();return a&&a.id===id?String(a.tok||''):''}
 try{localStorage.removeItem(ME_KEY);const a=getAuth();me=a&&a.id&&a.tok?a.id:null}catch(e){}
 function setMe(id){me=id;myFlt='open';myQ='';renderMy();window.scrollTo({top:0})}
 function pickTeacher(id){
-  pinFor=id;pinInfo=null;pinErr='';pinBusy=false;renderMy();window.scrollTo({top:0});
+  pinFor=id;pinInfo=null;pinErr='';pinBusy=false;renderMy();
   gs('api_pinStatus',id).then(i=>{if(pinFor!==id)return;pinInfo=i;renderMy()})
     .catch(e=>{if(pinFor!==id)return;pinFor=null;renderMy();swal({icon:'error',title:'เปิดหน้า PIN ไม่สำเร็จ',text:errMsg(e)})});
 }
@@ -1182,7 +1196,7 @@ function showUnverified(d){
   el.querySelector('.unv-q').oninput=e=>{q=e.target.value;draw()};
   const key=e=>{if(e.key==='Escape'){e.preventDefault();e.stopImmediatePropagation();fin()}};
   function fin(){if(done)return;done=true;document.removeEventListener('keydown',key,true);el.remove();
-    document.body.style.overflow=document.querySelector('#tab-assign:not(.hidden),#regModal:not(.hidden),#teacherModal:not(.hidden),#taskModal:not(.hidden)')?'hidden':''}
+    document.body.style.overflow=document.querySelector('#tab-assign:not(.hidden),#regModal:not(.hidden),#teacherModal:not(.hidden),#taskModal:not(.hidden),#myPin')?'hidden':''}
   el.onclick=e=>{if(e.target===el)fin()};
   el.querySelector('.unv-ok').onclick=fin;el.querySelector('.unv-x').onclick=fin;
   const cp=el.querySelector('.unv-cp');
@@ -1204,22 +1218,33 @@ function checkSession(){
   const a=getAuth();if(!a||!me)return;
   gs('api_checkSession',a.id,a.tok).catch(e=>{if(/เข้าสู่ระบบใหม่/.test(errMsg(e))){setAuth(null);setMe(null);toast('กรุณาใส่ PIN ใหม่')}});
 }
-function drawPin(box,t){
+function closePinModal(){const e=$('myPin');if(e){e.remove();document.body.style.overflow=''}}
+function drawPin(t){
   const key=[pinFor,pinInfo?pinInfo.hasPin+':'+pinInfo.wait:'-',pinErr,pinBusy].join('|');
-  if(box.dataset.mode==='pin'&&box.dataset.pk===key)return; // รีเฟรชข้อมูลทุก 30 วิ ต้องไม่ล้างตัวเลขที่กำลังพิมพ์
-  box.dataset.mode='pin';box.dataset.pk=key;
+  let el=$('myPin');
+  if(el&&el.dataset.pk===key)return; // รีเฟรชข้อมูลทุก 30 วิ ต้องไม่ล้างตัวเลขที่กำลังพิมพ์
+  if(!el){
+    el=document.createElement('div');el.id='myPin';el.className='fresh';
+    el.setAttribute('role','dialog');el.setAttribute('aria-modal','true');el.setAttribute('aria-labelledby','mpT');
+    el.onclick=ev=>{if(ev.target===el&&!pinBusy)cancelPin()};
+    document.body.appendChild(el);document.body.style.overflow='hidden';
+    setTimeout(()=>el.classList.remove('fresh'),450);
+  }
+  el.dataset.pk=key;
   const ready=!!pinInfo,first=ready&&!pinInfo.hasPin,locked=ready&&pinInfo.wait>0;
-  const f=(id,label,ac)=>`<label class="block text-sm font-semibold mb-1" for="${id}">${label}</label><input id="${id}" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="6" autocomplete="${ac}" class="inp mb-3 text-center tracking-widest" ${pinBusy||locked?'disabled':''} oninput="this.value=this.value.replace(/\\D/g,'')" onkeydown="if(event.key==='Enter')submitPin()">`;
-  box.innerHTML=`<div class="card p-5 md:max-w-md">
-    <div class="flex items-center gap-3 mb-4"><span class="tile font-bold" style="${tbgFlat(t)}">${esc(t.initials)}</span><div class="min-w-0"><b class="block truncate" style="color:var(--ink)">${esc(t.name)}</b><span class="block text-xs truncate">${esc(t.subject)}</span></div></div>
-    ${!ready?'<p class="text-sm">กำลังตรวจสอบ…</p>':`
-    <p class="text-sm mb-3">${first?'ครั้งแรกของคุณ: ตั้ง PIN ตัวเลข 4–6 หลัก ไว้ใช้เข้าดูงานของตัวเอง จำให้ได้ ถ้าลืมให้แจ้งแอดมินรีเซ็ต':'ใส่ PIN ของคุณเพื่อดูงานที่มอบหมาย'}</p>
+  const f=(id,label,ac)=>`<div class="mp-f"><label for="${id}">${label}</label><input id="${id}" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="6" autocomplete="${ac}" class="inp pin-in" ${pinBusy||locked?'disabled':''} oninput="this.value=this.value.replace(/\\D/g,'')" onkeydown="if(event.key==='Enter')submitPin()"></div>`;
+  el.innerHTML=`<div class="sw-box">
+    <span class="tile mp-av font-bold" style="${tbgFlat(t)}">${esc(t.initials)}</span>
+    <h2 class="sw-t" id="mpT">${esc(t.name)}</h2>
+    <p class="sw-x" style="margin-top:2px">${esc(t.subject)}</p>
+    ${!ready?'<p class="text-sm" style="padding:26px 0 8px">กำลังตรวจสอบ…</p>':`
+    <div class="mp-note">${first?'ครั้งแรกของคุณ ตั้ง PIN ตัวเลข 4–6 หลักไว้ใช้เข้าดูงานของตัวเอง เครื่องนี้จะจำไว้ 90 วัน ถ้าลืมให้แจ้งแอดมินรีเซ็ต':'ใส่ PIN เพื่อดูงานที่มอบหมายให้คุณ'}</div>
     ${f('pinIn',first?'ตั้ง PIN':'PIN',first?'new-password':'current-password')}${first?f('pinIn2','ยืนยัน PIN อีกครั้ง','new-password'):''}
     ${locked?`<p class="text-sm mb-3" role="alert" style="color:#E5484D">ถูกล็อกชั่วคราว ลองใหม่ในอีก ${Math.ceil(pinInfo.wait/60)} นาที</p>`:''}
-    ${pinErr?`<p class="text-sm mb-3" role="alert" style="color:#E5484D">${esc(pinErr)}</p>`:''}
-    <div class="flex gap-2"><button type="button" class="btn flex-1" onclick="submitPin()" ${pinBusy||locked?'disabled':''}>${pinBusy?'กำลังตรวจสอบ…':first?'ตั้ง PIN และเข้าใช้งาน':'เข้าสู่ระบบ'}</button><button type="button" class="btn2" onclick="cancelPin()" ${pinBusy?'disabled':''}>ย้อนกลับ</button></div>`}
+    ${pinErr?`<p class="text-sm mb-3" role="alert" style="color:#E5484D">${esc(pinErr)}</p>`:''}`}
+    <div class="sw-b" style="margin-top:${ready?'6px':'18px'}"><button type="button" class="sw-no" style="flex:.7" onclick="cancelPin()" ${pinBusy?'disabled':''}>ยกเลิก</button>${ready?`<button type="button" class="sw-ok" onclick="submitPin()" ${pinBusy||locked?'disabled':''}>${pinBusy?'กำลังตรวจสอบ…':first?'ตั้ง PIN และเข้าใช้งาน':'เข้าสู่ระบบ'}</button>`:''}</div>
   </div>`;
-  setTimeout(()=>{const el=$('pinIn');if(el&&!el.disabled)el.focus()},50);
+  setTimeout(()=>{const i=$('pinIn');if(i&&!i.disabled)i.focus()},50);
 }
 function renderMyPick(){
   const el=$('myPickList');if(!el)return;
@@ -1230,13 +1255,15 @@ function renderMyPick(){
 function renderMy(){
   const box=$('myBody');if(!box)return;
   const t=TEACHERS.find(x=>x.id===me);
-  if(!t&&pinFor){const pt=TEACHERS.find(x=>x.id===pinFor);if(pt){drawPin(box,pt);return}pinFor=null}
+  let pt=null;
+  if(!t&&pinFor){pt=TEACHERS.find(x=>x.id===pinFor)||null;if(!pt)pinFor=null}
+  if(!pt)closePinModal();
   if(!t){ // ยังไม่ได้เลือกชื่อ → หน้าเลือกชื่อ (สร้างโครงครั้งเดียว กันช่องค้นหาเสียโฟกัสตอนรีเฟรช)
     if(box.dataset.mode!=='pick'){
       box.dataset.mode='pick';
       box.innerHTML=`<p class="text-sm mb-3">เลือกชื่อของคุณ แล้วใส่ PIN เพื่อดูงานที่มอบหมายให้คุณ เครื่องนี้จะจำไว้จนกว่าจะกด เปลี่ยนผู้ใช้</p><input id="myQ" type="search" value="${esc(myQ)}" oninput="myQ=this.value;renderMyPick()" placeholder="ค้นหาชื่อของคุณ" class="inp mb-4 md:max-w-md" aria-label="ค้นหาชื่อของคุณ" autocomplete="off"><div id="myPickList" class="grid gap-3 tlist-scroll" style="grid-template-columns:repeat(auto-fill,minmax(min(100%,260px),1fr))"></div>`;
     }
-    renderMyPick();return;
+    renderMyPick();if(pt)drawPin(pt);return;
   }
   box.dataset.mode='task';
   const today=new Date();today.setHours(0,0,0,0);
@@ -1255,7 +1282,7 @@ function renderMy(){
 const toB64=f=>new Promise((ok,no)=>{const r=new FileReader();r.onload=()=>ok(String(r.result).split(',')[1]||'');r.onerror=()=>no(r.error);r.readAsDataURL(f)});
 async function uploadFile(taskId,f){return gs('api_uploadFile',taskId,{name:f.name,mime:f.type||'application/octet-stream',data:await toB64(f)})}
 function busy(t){const el=document.createElement('div');el.id='swBusy';el.innerHTML=`<div class="sw-box"><div class="sw-spin"></div><h2 class="sw-t">${esc(t)}</h2><p class="sw-x"></p></div>`;document.body.appendChild(el);document.body.style.overflow='hidden';
-  return{set:x=>{el.querySelector('.sw-x').textContent=x},done:()=>{el.remove();document.body.style.overflow=document.querySelector('#tab-assign:not(.hidden),#regModal:not(.hidden),#teacherModal:not(.hidden),#taskModal:not(.hidden)')?'hidden':''}}}
+  return{set:x=>{el.querySelector('.sw-x').textContent=x},done:()=>{el.remove();document.body.style.overflow=document.querySelector('#tab-assign:not(.hidden),#regModal:not(.hidden),#teacherModal:not(.hidden),#taskModal:not(.hidden),#myPin')?'hidden':''}}}
 /* ===== swal: กล่องแจ้งเตือน/ยืนยัน (ไม่พึ่งไลบรารีภายนอก) ===== */
 let swQ=Promise.resolve();
 function swal(o){const p=swQ.then(()=>swShow(o));swQ=p.catch(()=>{});return p}
@@ -1272,7 +1299,7 @@ function swShow(o){return new Promise(res=>{
   function close(v){
     if(done)return;done=true;clearTimeout(tm);document.removeEventListener('keydown',key,true);
     el.classList.remove('on');
-    setTimeout(()=>{el.remove();document.body.style.overflow=document.querySelector('#tab-assign:not(.hidden),#regModal:not(.hidden),#teacherModal:not(.hidden),#taskModal:not(.hidden)')?'hidden':'';
+    setTimeout(()=>{el.remove();document.body.style.overflow=document.querySelector('#tab-assign:not(.hidden),#regModal:not(.hidden),#teacherModal:not(.hidden),#taskModal:not(.hidden),#myPin')?'hidden':'';
       if(prev&&prev.focus&&document.contains(prev)&&!/^(INPUT|SELECT|TEXTAREA)$/.test(prev.tagName))prev.focus();res(v)},180);
   }
   document.addEventListener('keydown',key,true);
@@ -1311,7 +1338,7 @@ function toast(m){
   setTimeout(()=>{el.classList.add('opacity-0');setTimeout(()=>el.remove(),300)},2400);
 }
 window.onload=()=>{
-  document.addEventListener('keydown',e=>{if(e.key==='Escape'){if(!$('regModal').classList.contains('hidden'))closeReg();else if(!$('teacherModal').classList.contains('hidden'))closeTeacher();else if(!$('taskModal').classList.contains('hidden'))closeTask();else closeAssign()}});
+  document.addEventListener('keydown',e=>{if(e.key==='Escape'){if($('myPin')){if(!pinBusy)cancelPin();return}if(!$('regModal').classList.contains('hidden'))closeReg();else if(!$('teacherModal').classList.contains('hidden'))closeTeacher();else if(!$('taskModal').classList.contains('hidden'))closeTask();else closeAssign()}});
   Promise.all([initApp(),new Promise(r=>setTimeout(r,1500))]).then(()=>{const sp=$('splash');sp.classList.add('out');setTimeout(()=>sp.remove(),600)});
 };
 </script>
