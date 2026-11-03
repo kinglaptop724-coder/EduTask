@@ -323,6 +323,10 @@ select.inp{appearance:none;-webkit-appearance:none;padding-right:40px;background
 #asgPush:empty{display:none}
 #asgPin{position:fixed;inset:0;z-index:150;display:flex;align-items:center;justify-content:center;padding:20px;background:rgba(15,26,46,.55);backdrop-filter:blur(4px)}
 #asgPin .sw-box{transform:none}
+#unv{position:fixed;inset:0;z-index:150;display:flex;align-items:center;justify-content:center;padding:20px;background:rgba(15,26,46,.55);backdrop-filter:blur(4px)}
+#unv .sw-box{transform:none;width:min(460px,100%);text-align:left}
+.unv-list{max-height:48vh;overflow-y:auto;overscroll-behavior:contain;margin-top:12px;display:grid;gap:8px;padding-right:4px}
+.unv-row{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:14px;background:var(--mist)}
 </style>
 </head>
 <body>
@@ -460,7 +464,7 @@ select.inp{appearance:none;-webkit-appearance:none;padding-right:40px;background
 
     <!-- แท็บ 3 -->
     <section id="tab-teachers" class="hidden">
-      <div class="flex items-end justify-between gap-3 mb-5"><h2 class="ttl text-3xl sm:text-4xl">งาน<b>รายบุคคล</b></h2></div>
+      <div class="flex items-end justify-between gap-3 mb-5"><h2 class="ttl text-3xl sm:text-4xl">งาน<b>รายบุคคล</b></h2><button type="button" class="btn2 !py-2 !px-3 !text-xs shrink-0" onclick="openUnverified()">🔒 ตรวจครูที่ยังไม่ยืนยันตัวตน</button></div>
       <p class="text-sm mb-3">เลือกครูเพื่อดูงานที่ได้รับมอบหมาย</p>
       <input id="teacherSearch" type="search" oninput="renderTeachersTab()" placeholder="ค้นหาชื่อครู หรือตำแหน่ง" class="inp mb-4 md:max-w-md" aria-label="ค้นหาครู" autocomplete="off">
       <div id="teacherList" class="grid gap-3 tlist-scroll"></div>
@@ -1048,6 +1052,35 @@ async function submitPin(){
     pinBusy=false;pinErr=errMsg(e);renderMy();
     gs('api_pinStatus',id).then(i=>{if(pinFor===id){pinInfo=i;renderMy()}}).catch(()=>{});
   }
+}
+/* ===== แอดมิน (ผอ.): ดูครูที่ยังไม่ยืนยันตัวตน (ยังไม่ตั้ง PIN) เพื่อแจ้งให้เข้ามาตั้ง PIN ===== */
+async function openUnverified(){
+  let r;
+  try{r=await withAsg('ผู้อำนวยการโรงเรียน',tok=>{const b=busy('กำลังตรวจสอบ…');return gs('api_unverified',tok).finally(()=>b.done())})}
+  catch(e){swal({icon:'error',title:'ตรวจสอบไม่สำเร็จ',text:errMsg(e)});return}
+  if(r.cancel)return;
+  showUnverified(r.v);
+}
+function showUnverified(d){
+  const list=d.list||[],el=document.createElement('div');
+  el.id='unv';el.setAttribute('role','dialog');el.setAttribute('aria-modal','true');el.setAttribute('aria-labelledby','unvT');
+  const msg=list.length?'ครูที่ยังไม่ยืนยันตัวตน (ยังไม่ตั้ง PIN) ตามรายชื่อนี้ กรุณาเข้าระบบ EduTask ที่เมนู "งานของฉัน" เลือกชื่อตัวเอง แล้วตั้ง PIN\n\n'+list.map((t,i)=>(i+1)+'. '+t.name+(t.open?' (งานค้าง '+t.open+')':'')).join('\n'):'';
+  el.innerHTML=`<div class="sw-box"><h2 class="sw-t" id="unvT">ครูที่ยังไม่ยืนยันตัวตน</h2><p class="sw-x" style="text-align:left">ยืนยันแล้ว <b style="color:var(--ok)">${d.total-list.length}</b> จาก ${d.total} ท่าน • ยังไม่ยืนยัน <b style="color:#E5484D">${list.length}</b> ท่าน<br><span class="text-xs">"ยืนยันตัวตน" = เคยตั้ง PIN เข้าใช้งานแล้ว</span></p>`+
+    (list.length?`<div class="unv-list">${list.map(t=>{const x=TEACHERS.find(a=>a.id===t.id)||{initials:'?',c:'#2E5FBF'};return `<div class="unv-row"><span class="tile !w-9 !h-9 !text-xs font-bold" style="${tbgFlat(x)}">${esc(x.initials)}</span><span class="min-w-0 flex-1"><b class="block text-sm truncate" style="color:var(--ink)">${esc(t.name)}</b><span class="block text-xs truncate">${esc(t.subject)}</span></span>${t.open?`<span class="pill shrink-0" style="background:#F29A1F1A;color:#B86E00">ค้าง ${t.open}</span>`:''}</div>`}).join('')}</div>`:`<p class="text-sm py-6 text-center">ครูทุกท่านยืนยันตัวตนแล้ว 🎉</p>`)+
+    `<div class="sw-b">${list.length?'<button type="button" class="sw-no unv-cp">คัดลอกข้อความ</button>':''}<button type="button" class="sw-ok unv-ok">ปิด</button></div></div>`;
+  let done=false;
+  const key=e=>{if(e.key==='Escape'){e.preventDefault();e.stopImmediatePropagation();fin()}};
+  function fin(){if(done)return;done=true;document.removeEventListener('keydown',key,true);el.remove();
+    document.body.style.overflow=document.querySelector('#tab-assign:not(.hidden),#regModal:not(.hidden),#teacherModal:not(.hidden),#taskModal:not(.hidden)')?'hidden':''}
+  el.onclick=e=>{if(e.target===el)fin()};
+  el.querySelector('.unv-ok').onclick=fin;
+  const cp=el.querySelector('.unv-cp');
+  if(cp)cp.onclick=async()=>{
+    try{await navigator.clipboard.writeText(msg);toast('คัดลอกแล้ว นำไปวางใน LINE ได้เลย')}
+    catch(e){const ta=document.createElement('textarea');ta.value=msg;document.body.appendChild(ta);ta.select();try{document.execCommand('copy');toast('คัดลอกแล้ว นำไปวางใน LINE ได้เลย')}catch(_){swal({icon:'error',title:'คัดลอกไม่สำเร็จ'})}ta.remove()}
+  };
+  document.addEventListener('keydown',key,true);document.body.appendChild(el);document.body.style.overflow='hidden';
+  el.querySelector('.unv-ok').focus();
 }
 function logoutMe(){
   const a=getAuth();
