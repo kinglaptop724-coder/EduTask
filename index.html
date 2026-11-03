@@ -464,7 +464,7 @@ select.inp{appearance:none;-webkit-appearance:none;padding-right:40px;background
 
     <!-- แท็บ 3 -->
     <section id="tab-teachers" class="hidden">
-      <div class="flex items-end justify-between gap-3 mb-5"><h2 class="ttl text-3xl sm:text-4xl">งาน<b>รายบุคคล</b></h2><button type="button" class="btn2 !py-2 !px-3 !text-xs shrink-0" onclick="openUnverified()">🔒 ตรวจครูที่ยังไม่ยืนยันตัวตน</button></div>
+      <div class="flex items-end justify-between gap-3 mb-5"><h2 class="ttl text-3xl sm:text-4xl">งาน<b>รายบุคคล</b></h2><button type="button" class="btn2 !py-2 !px-3 !text-xs shrink-0" onclick="openUnverified()">🔒 แอดมิน: ตรวจครูที่ยังไม่ยืนยันตัวตน</button></div>
       <p class="text-sm mb-3">เลือกครูเพื่อดูงานที่ได้รับมอบหมาย</p>
       <input id="teacherSearch" type="search" oninput="renderTeachersTab()" placeholder="ค้นหาชื่อครู หรือตำแหน่ง" class="inp mb-4 md:max-w-md" aria-label="ค้นหาครู" autocomplete="off">
       <div id="teacherList" class="grid gap-3 tlist-scroll"></div>
@@ -741,7 +741,7 @@ function askAsgPin(id,name){return new Promise(res=>{
   function draw(){
     const ready=!!info,first=ready&&!info.hasPin,locked=ready&&info.wait>0,dis=(bz||locked||!ready)?'disabled':'';
     const f=(i,l,ac)=>`<label class="block text-sm font-semibold mb-1 text-left" for="${i}">${l}</label><input id="${i}" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="6" autocomplete="${ac}" class="inp mb-3 text-center tracking-widest" ${dis} oninput="this.value=this.value.replace(/\\D/g,'')">`;
-    el.innerHTML=`<div class="sw-box"><h2 class="sw-t" id="apT">ยืนยันตัวตนผู้มอบหมาย</h2><p class="sw-x" style="margin-bottom:14px"><b style="color:var(--ink)">${esc(name)}</b></p>${!ready?'<p class="text-sm py-4">กำลังตรวจสอบ…</p>':`<p class="text-sm mb-3 text-left" style="line-height:1.7">${first?'ครั้งแรกของตำแหน่งนี้: ตั้ง PIN ตัวเลข 4–6 หลัก (ผู้ดำรงตำแหน่งใช้ร่วมกัน) ถ้าลืมให้แอดมินรีเซ็ต':'ใส่ PIN ของตำแหน่งนี้ เพื่อมอบหมาย/ลบงาน และรับแจ้งเตือนเมื่อครูรับทราบ'}</p>${f('apIn',first?'ตั้ง PIN':'PIN',first?'new-password':'current-password')}${first?f('apIn2','ยืนยัน PIN อีกครั้ง','new-password'):''}${locked?`<p class="text-sm mb-3" role="alert" style="color:#E5484D">ถูกล็อกชั่วคราว ลองใหม่ในอีก ${Math.ceil(info.wait/60)} นาที</p>`:''}${err?`<p class="text-sm mb-3" role="alert" style="color:#E5484D">${esc(err)}</p>`:''}`}<div class="sw-b"><button type="button" class="sw-no ap-no" ${bz?'disabled':''}>ยกเลิก</button><button type="button" class="sw-ok ap-ok" ${dis}>${bz?'กำลังตรวจสอบ…':first?'ตั้ง PIN':'เข้าสู่ระบบ'}</button></div></div>`;
+    el.innerHTML=`<div class="sw-box"><h2 class="sw-t" id="apT">${id===ADMIN_ID?'เข้าสู่ระบบแอดมิน':'ยืนยันตัวตนผู้มอบหมาย'}</h2><p class="sw-x" style="margin-bottom:14px"><b style="color:var(--ink)">${esc(name)}</b></p>${!ready?'<p class="text-sm py-4">กำลังตรวจสอบ…</p>':`<p class="text-sm mb-3 text-left" style="line-height:1.7">${id===ADMIN_ID?'ใส่ PIN ของแอดมินระบบ (แยกจาก PIN ครูและ PIN ผู้บริหาร)':first?'ครั้งแรกของตำแหน่งนี้: ตั้ง PIN ตัวเลข 4–6 หลัก (ผู้ดำรงตำแหน่งใช้ร่วมกัน) ถ้าลืมให้แอดมินรีเซ็ต':'ใส่ PIN ของตำแหน่งนี้ เพื่อมอบหมาย/ลบงาน และรับแจ้งเตือนเมื่อครูรับทราบ'}</p>${f('apIn',first?'ตั้ง PIN':'PIN',first?'new-password':'current-password')}${first?f('apIn2','ยืนยัน PIN อีกครั้ง','new-password'):''}${locked?`<p class="text-sm mb-3" role="alert" style="color:#E5484D">ถูกล็อกชั่วคราว ลองใหม่ในอีก ${Math.ceil(info.wait/60)} นาที</p>`:''}${err?`<p class="text-sm mb-3" role="alert" style="color:#E5484D">${esc(err)}</p>`:''}`}<div class="sw-b"><button type="button" class="sw-no ap-no" ${bz?'disabled':''}>ยกเลิก</button><button type="button" class="sw-ok ap-ok" ${dis}>${bz?'กำลังตรวจสอบ…':first?'ตั้ง PIN':'เข้าสู่ระบบ'}</button></div></div>`;
     el.querySelector('.ap-ok').onclick=submit;el.querySelector('.ap-no').onclick=()=>fin(false);
     const i1=el.querySelector('#apIn');if(i1&&!i1.disabled)setTimeout(()=>i1.focus(),30);
   }
@@ -752,7 +752,13 @@ function askAsgPin(id,name){return new Promise(res=>{
 })}
 /* เรียก API ที่ต้องยืนยันตัวตนตำแหน่งผู้มอบหมาย: ยังไม่ล็อกอิน → ขอ PIN | token หมดอายุ → ขอ PIN ใหม่ 1 ครั้ง | ผู้ใช้กดยกเลิก → {cancel:true} */
 async function withAsg(name,fn){
-  const nm=ASG_IDS[name]?name:'ผู้อำนวยการโรงเรียน',id=asgId(nm);
+  const nm=ASG_IDS[name]?name:'ผู้อำนวยการโรงเรียน';
+  return withAuth(asgId(nm),nm,fn);
+}
+/* แอดมินระบบ: บัญชีแยก (รหัส ADMIN) ไม่เกี่ยวกับ PIN ครูหรือตำแหน่งผู้บริหาร */
+const ADMIN_ID='ADMIN',ADMIN_NAME='แอดมินระบบ';
+const withAdmin=fn=>withAuth(ADMIN_ID,ADMIN_NAME,fn);
+async function withAuth(id,nm,fn){
   for(let k=0;k<2;k++){
     if(!asgTok(id)&&!await askAsgPin(id,nm))return{cancel:true};
     try{return{v:await fn(asgTok(id))}}
@@ -1056,7 +1062,7 @@ async function submitPin(){
 /* ===== แอดมิน (ผอ.): ดูครูที่ยังไม่ยืนยันตัวตน (ยังไม่ตั้ง PIN) เพื่อแจ้งให้เข้ามาตั้ง PIN ===== */
 async function openUnverified(){
   let r;
-  try{r=await withAsg('ผู้อำนวยการโรงเรียน',tok=>{const b=busy('กำลังตรวจสอบ…');return gs('api_unverified',tok).finally(()=>b.done())})}
+  try{r=await withAdmin(tok=>{const b=busy('กำลังตรวจสอบ…');return gs('api_unverified',tok).finally(()=>b.done())})}
   catch(e){swal({icon:'error',title:'ตรวจสอบไม่สำเร็จ',text:errMsg(e)});return}
   if(r.cancel)return;
   showUnverified(r.v);
