@@ -294,6 +294,18 @@ select.inp{appearance:none;-webkit-appearance:none;padding-right:40px;background
 @media(hover:none){.trw:hover{transform:none;box-shadow:0 6px 18px -8px rgba(30,58,110,.18)}}
 #taskDetail article.card:hover{transform:none;box-shadow:0 6px 18px -8px rgba(30,58,110,.18)}
 #taskDetail h3,#taskDetail article p.text-sm{-webkit-line-clamp:unset !important;display:block !important;overflow:visible !important;min-height:0 !important}
+#fv{position:fixed;inset:0;z-index:140;display:flex;flex-direction:column;background:rgba(15,26,46,.72);backdrop-filter:blur(4px);padding:max(12px,env(safe-area-inset-top,0px)) 12px max(12px,env(safe-area-inset-bottom,0px))}
+#fv .fv-box{margin:auto;width:min(980px,100%);height:100%;max-height:100%;display:flex;flex-direction:column;background:var(--bg);border-radius:22px;overflow:hidden;box-shadow:0 24px 60px -16px rgba(0,0,0,.55)}
+#fv .fv-h{display:flex;align-items:center;gap:8px;padding:10px 12px 10px 16px;background:var(--card);border-bottom:1px solid var(--line)}
+#fv .fv-t{flex:1;min-width:0;font-weight:700;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#fv .fv-b{min-width:38px;height:38px;padding:0 10px;border-radius:12px;background:var(--mist);color:var(--blue);font-weight:700;font-size:15px;line-height:1;flex-shrink:0}
+#fv .fv-b:hover{filter:brightness(.96)}
+#fv .fv-x{border-radius:50%;width:38px;padding:0;font-size:20px}
+#fv .fv-body{flex:1;overflow:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;padding:12px;background:var(--mist);text-align:center}
+#fv canvas{display:block;margin:0 auto 12px;background:#fff;border-radius:6px;box-shadow:0 4px 14px -6px rgba(30,58,110,.35);max-width:none}
+#fv .fv-body img{max-width:100%;height:auto;margin:0 auto;border-radius:8px;background:#fff}
+#fv .fv-msg{padding:40px 12px;color:var(--txt)}
+@media(max-width:640px){#fv{padding:0}#fv .fv-box{border-radius:0}#fv .fv-zoom{display:none}}
 #swBusy{position:fixed;inset:0;z-index:210;display:flex;align-items:center;justify-content:center;padding:20px;background:rgba(15,26,46,.55);backdrop-filter:blur(4px)}
 #swBusy .sw-box{transform:none}
 .sw-spin{width:64px;height:64px;margin:0 auto 18px;border-radius:50%;border:5px solid var(--mist);border-top-color:var(--orange);animation:swspin .9s linear infinite}
@@ -749,7 +761,7 @@ function extTag(f){
 }
 function filesHTML(t){
   const fs=t.files||[];
-  const chips=fs.map(f=>`<span class="inline-flex items-center gap-1 max-w-full pl-1.5 pr-1 py-1 rounded-lg text-xs" style="background:var(--mist)"><button type="button" onclick="openFile(${t.id},'${f.id}')" class="inline-flex items-center gap-1.5 min-w-0 text-left" title="ดาวน์โหลด ${esc(f.name)}">${extTag(f)}<span class="truncate" style="max-width:130px;color:var(--ink)">${esc(f.name)}</span><span class="opacity-60 shrink-0">${fmtSize(f.size)}</span></button><button type="button" onclick="removeFile(${t.id},'${f.id}')" aria-label="ลบไฟล์" class="w-6 h-6 rounded-full leading-none opacity-60 hover:opacity-100">×</button></span>`).join('');
+  const chips=fs.map(f=>`<span class="inline-flex items-center gap-1 max-w-full pl-1.5 pr-1 py-1 rounded-lg text-xs" style="background:var(--mist)"><button type="button" onclick="openFile(${t.id},'${f.id}')" class="inline-flex items-center gap-1.5 min-w-0 text-left" title="ดูไฟล์ ${esc(f.name)}">${extTag(f)}<span class="truncate" style="max-width:130px;color:var(--ink)">${esc(f.name)}</span><span class="opacity-60 shrink-0">${fmtSize(f.size)}</span></button><button type="button" onclick="removeFile(${t.id},'${f.id}')" aria-label="ลบไฟล์" class="w-6 h-6 rounded-full leading-none opacity-60 hover:opacity-100">×</button></span>`).join('');
   const add=fs.length<MAX_FILES?`<button type="button" onclick="pickFile(${t.id})" class="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-semibold border" style="border-color:var(--blue);color:var(--blue)">+ แนบไฟล์</button>`:'';
   return `<div class="flex flex-wrap gap-1.5">${chips}${add}</div>`;
 }
@@ -784,11 +796,95 @@ async function removeFile(tid,fid){
   const b=busy('กำลังลบไฟล์…');
   try{await gs('api_deleteFile',tid,fid);t.files=(t.files||[]).filter(f=>f.id!==fid);b.done();renderAll();toast('ลบไฟล์แนบแล้ว')}catch(e){b.done();fail(e)}
 }
+/* ===== ดูไฟล์แนบเป็น popup (PDF / รูปภาพ) ===== */
+const PDFJS_VER='3.11.174',PDFJS_BASE='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/'+PDFJS_VER+'/';
+let pdfjsP=null;
+function loadPdfJs(){
+  if(window.pdfjsLib)return Promise.resolve(window.pdfjsLib);
+  if(pdfjsP)return pdfjsP;
+  pdfjsP=new Promise((ok,no)=>{
+    const sc=document.createElement('script');sc.src=PDFJS_BASE+'pdf.min.js';
+    sc.onload=()=>{window.pdfjsLib.GlobalWorkerOptions.workerSrc=PDFJS_BASE+'pdf.worker.min.js';ok(window.pdfjsLib)};
+    sc.onerror=()=>{pdfjsP=null;no(new Error('โหลดตัวแสดง PDF ไม่ได้ (ตรวจสอบอินเทอร์เน็ต)'))};
+    document.head.appendChild(sc);
+  });
+  return pdfjsP;
+}
+const fileCache=new Map();
+async function fetchFile(tid,fid){
+  const k=tid+'/'+fid;if(fileCache.has(k))return fileCache.get(k);
+  const r=await gs('api_getFile',tid,fid),bin=atob(r.data),u8=new Uint8Array(bin.length);
+  for(let i=0;i<bin.length;i++)u8[i]=bin.charCodeAt(i);
+  const v={name:r.name,type:r.type||'',u8:u8};
+  fileCache.set(k,v);if(fileCache.size>6)fileCache.delete(fileCache.keys().next().value);
+  return v;
+}
+function saveFile(v){
+  const u=URL.createObjectURL(new Blob([v.u8],{type:v.type})),a=document.createElement('a');
+  a.href=u;a.download=v.name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),4000);
+}
+let fvState=null;
+function closeFV(){
+  if(!fvState)return;
+  fvState.dead=true;document.removeEventListener('keydown',fvState.key);
+  if(fvState.pdf){try{fvState.pdf.destroy()}catch(_){}}
+  if(fvState.url)URL.revokeObjectURL(fvState.url);
+  fvState.el.remove();fvState=null;
+}
+async function fvRenderPdf(st){
+  const body=st.body,tok=++st.tok;
+  body.innerHTML='';
+  const w0=Math.max(240,body.clientWidth-24);
+  for(let n=1;n<=st.pdf.numPages;n++){
+    if(st.dead||tok!==st.tok)return;
+    const pg=await st.pdf.getPage(n),v1=pg.getViewport({scale:1}),
+      cssW=Math.round(w0*st.zoom),sc=cssW/v1.width,dpr=Math.min(window.devicePixelRatio||1,2),
+      vp=pg.getViewport({scale:sc*dpr}),cv=document.createElement('canvas');
+    cv.width=Math.floor(vp.width);cv.height=Math.floor(vp.height);
+    cv.style.width=cssW+'px';cv.style.height=Math.floor(vp.height/dpr)+'px';
+    cv.setAttribute('aria-label','หน้า '+n+' จาก '+st.pdf.numPages);
+    body.appendChild(cv);
+    await pg.render({canvasContext:cv.getContext('2d'),viewport:vp}).promise;
+  }
+}
+function openFV(v,isPdf){
+  closeFV();
+  const el=document.createElement('div');el.id='fv';el.setAttribute('role','dialog');el.setAttribute('aria-modal','true');el.setAttribute('aria-label',v.name);
+  el.innerHTML=`<div class="fv-box"><div class="fv-h"><span class="fv-t" title="${esc(v.name)}">${esc(v.name)}</span>${isPdf?'<span class="fv-zoom inline-flex gap-1"><button type="button" class="fv-b" data-z="-1" aria-label="ย่อ">−</button><button type="button" class="fv-b" data-z="1" aria-label="ขยาย">+</button></span>':''}<button type="button" class="fv-b" data-dl="1">⬇ ดาวน์โหลด</button><button type="button" class="fv-b fv-x" data-x="1" aria-label="ปิด">×</button></div><div class="fv-body"><div class="fv-msg">กำลังแสดงไฟล์…</div></div></div>`;
+  el.onclick=e=>{if(e.target===el)closeFV()};
+  document.body.appendChild(el);
+  const st=fvState={el,body:el.querySelector('.fv-body'),zoom:1,tok:0,dead:false,pdf:null,url:null};
+  st.key=e=>{if(e.key==='Escape'&&!document.getElementById('swal'))closeFV()};
+  document.addEventListener('keydown',st.key);
+  el.querySelector('[data-x]').onclick=closeFV;
+  el.querySelector('[data-dl]').onclick=()=>saveFile(v);
+  el.querySelectorAll('[data-z]').forEach(b=>b.onclick=()=>{
+    st.zoom=Math.min(3,Math.max(.6,st.zoom+(+b.dataset.z)*.25));if(st.pdf)fvRenderPdf(st).catch(()=>{});
+  });
+  return st;
+}
 async function openFile(tid,fid){
+  const f=((tasks.find(x=>x.id===tid)||{}).files||[]).find(x=>x.id===fid)||{},
+    ext=((f.name||'').split('.').pop()||'').toLowerCase(),
+    canPdf=ext==='pdf',canImg=['png','jpg','jpeg','gif','webp'].includes(ext);
   const b=busy('กำลังเตรียมไฟล์…');
-  try{const r=await gs('api_getFile',tid,fid),bin=atob(r.data),u8=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)u8[i]=bin.charCodeAt(i);
-    const u=URL.createObjectURL(new Blob([u8],{type:r.type})),a=document.createElement('a');a.href=u;a.download=r.name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),4000);b.done()}
-  catch(e){b.done();swal({icon:'error',title:'เปิดไฟล์ไม่สำเร็จ',text:errMsg(e)})}
+  try{
+    const v=await fetchFile(tid,fid);
+    const isPdf=canPdf||/pdf/i.test(v.type),isImg=canImg||/^image\//i.test(v.type);
+    if(!isPdf&&!isImg){b.done();saveFile(v);return}
+    if(isPdf){
+      const lib=await loadPdfJs();b.done();
+      const st=openFV(v,true);
+      try{
+        st.pdf=await lib.getDocument({data:v.u8.slice()}).promise;
+        await fvRenderPdf(st);
+      }catch(e){if(!st.dead)st.body.innerHTML='<div class="fv-msg">แสดงไฟล์นี้ในหน้าต่างไม่ได้ ('+esc(errMsg(e))+')<br>กด "ดาวน์โหลด" ด้านบนเพื่อเปิดดูในเครื่อง</div>'}
+    }else{
+      b.done();const st=openFV(v,false);
+      st.url=URL.createObjectURL(new Blob([v.u8],{type:v.type||'image/'+(ext==='jpg'?'jpeg':ext)}));
+      st.body.innerHTML=`<img src="${st.url}" alt="${esc(v.name)}">`;
+    }
+  }catch(e){b.done();swal({icon:'error',title:'เปิดไฟล์ไม่สำเร็จ',text:errMsg(e)})}
 }
 let wz=0;
 function wzRender(){
