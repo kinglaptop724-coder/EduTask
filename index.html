@@ -458,6 +458,8 @@ select.inp{appearance:none;-webkit-appearance:none;padding-right:40px;background
  .side>.nv.cta:active{transform:scale(.97)}
  .content{padding-bottom:calc(150px + env(safe-area-inset-bottom,0px))} /* กันเนื้อหาท้ายหน้าโดนแถบเมนู + ปุ่มลอยบัง */
 }
+/* จอที่มีปุ่มติดตั้งมุมขวาบนของหัวเว็บอยู่แล้ว (≤1100px) ซ่อนปุ่มติดตั้งในกล่องต้อนรับ ไม่ให้ซ้ำ | จอคอมใหญ่ยังแสดงปุ่มนี้ */
+@media(max-width:1100px){#heroInstall{display:none !important}}
 </style>
 </head>
 <body>
