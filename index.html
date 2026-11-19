@@ -1129,10 +1129,12 @@ function renderTaskList(){
   const q=$('searchInput').value.trim().toLowerCase(),a=$('assignerFilter').value,tv=$('teacherFilter').value;
   const list=tasks.filter(t=>{
     const names=(t.teacherIds||[]).map(id=>TEACHERS.find(x=>x.id===id)?.name||'').join(' ').toLowerCase();
-    return (filter==='all'||t.status===filter)&&(a==='all'||t.assigner===a)&&(tv==='all'||t.teacherIds?.includes(tv))&&
+    return (filter==='all'?(!!q||t.status!=='completed'):t.status===filter)&&(a==='all'||t.assigner===a)&&(tv==='all'||t.teacherIds?.includes(tv))&&
       (!q||t.title.toLowerCase().includes(q)||(t.note||'').toLowerCase().includes(q)||t.assigner.toLowerCase().includes(q)||names.includes(q));
   });
-  $('taskGridContainer').innerHTML=list.length?list.map(taskRow).join(''):`<div class="min-[900px]:col-span-2 card p-10 text-center"><p class="font-bold" style="color:var(--ink)">ไม่พบรายการงาน</p><p class="text-sm mt-1">ลองเปลี่ยนตัวกรอง หรือมอบหมายงานใหม่</p></div>`;
+  $('taskGridContainer').innerHTML=list.length?list.map(taskRow).join(''):`<div class="min-[900px]:col-span-2 card p-10 text-center"><p class="font-bold" style="color:var(--ink)">ไม่พบรายการงาน</p><p class="text-sm mt-1">ลองเปลี่ยนตัวกรอง หรือมอบหมายงานใหม่</p></div>`
+  const hid=(filter==='all'&&!q)?tasks.filter(t=>t.status==='completed'&&(a==='all'||t.assigner===a)&&(tv==='all'||t.teacherIds?.includes(tv))).length:0;
+  if(hid)$('taskGridContainer').insertAdjacentHTML('beforeend',`<button type="button" onclick="filter='completed';renderAll()" class="min-[900px]:col-span-2 text-sm py-3 rounded-2xl" style="background:var(--mist);color:var(--blue);font-weight:600">ซ่อนงานที่เสร็จแล้ว ${hid} รายการ · กดเพื่อดู</button>`);
 }
 function changeStatus(id,s){const t=tasks.find(x=>x.id===id);if(!t)return;t.status=s;gs('api_updateStatus',id,s).catch(fail);renderAll();toast(`เปลี่ยนสถานะเป็น "${ST[s].l}" แล้ว`)}
 async function deleteTask(id){const x=tasks.find(t=>t.id===id);if(!x)return;
