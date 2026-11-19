@@ -306,6 +306,8 @@ select.inp{appearance:none;-webkit-appearance:none;padding-right:40px;background
 #fv .fv-body img{max-width:100%;height:auto;margin:0 auto;border-radius:8px;background:#fff}
 #fv .fv-msg{padding:40px 12px;color:var(--txt)}
 @media(max-width:640px){#fv{padding:0}#fv .fv-box{border-radius:0}#fv .fv-zoom{display:none}}
+.nv .nv-s{display:none}
+@media(max-width:760px){.nv .nv-l{display:none}.nv .nv-s{display:inline}}
 #swBusy{position:fixed;inset:0;z-index:210;display:flex;align-items:center;justify-content:center;padding:20px;background:rgba(15,26,46,.55);backdrop-filter:blur(4px)}
 #swBusy .sw-box{transform:none}
 .sw-spin{width:64px;height:64px;margin:0 auto 18px;border-radius:50%;border:5px solid var(--mist);border-top-color:var(--orange);animation:swspin .9s linear infinite}
@@ -467,6 +469,7 @@ select.inp{appearance:none;-webkit-appearance:none;padding-right:40px;background
     <button class="nv" id="nav-tab-dashboard" onclick="switchTab('tab-dashboard')"><i class="ic"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 20V10M12 20V4M19 20v-7"/></svg></i>แดชบอร์ด</button>
     <button class="nv" id="nav-tab-teachers" onclick="switchTab('tab-teachers')"><i class="ic"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg></i>งานรายบุคคล</button>
     <button class="nv" id="nav-tab-my" onclick="switchTab('tab-my')"><i class="ic"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="4"/><path d="M2 21c0-4 3-6 7-6s7 2 7 6"/><path d="M16 11l2 2 4-4"/></svg></i>งานของฉัน</button>
+    <button class="nv" id="nav-tab-done" onclick="switchTab('tab-done')"><i class="ic"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M8 12.5l3 3 5-6"/></svg></i><span class="nv-l">งานที่เสร็จสิ้น</span><span class="nv-s">เสร็จสิ้น</span></button>
   </nav>
   <div id="sideSum"></div>
   <button class="nv cta" id="nav-tab-assign" onclick="switchTab('tab-assign')"><i class="ic"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></i>มอบหมายงาน</button>
@@ -579,6 +582,18 @@ select.inp{appearance:none;-webkit-appearance:none;padding-right:40px;background
       <div id="pushCard"></div>
       <div id="myBody" data-mode=""></div>
     </section>
+
+    <!-- งานที่เสร็จสิ้น -->
+    <section id="tab-done" class="hidden">
+      <h2 class="ttl text-3xl sm:text-4xl mb-2">งานที่<b>เสร็จสิ้น</b></h2>
+      <p class="text-sm mb-5" id="doneSub"></p>
+      <div class="card p-3 flex flex-col md:flex-row gap-2.5 mb-5">
+        <input id="doneSearch" oninput="renderDone()" placeholder="ค้นหาชื่องาน รายละเอียด หรือชื่อครู" class="inp md:flex-1" aria-label="ค้นหา">
+        <select id="doneAssigner" onchange="renderDone()" class="inp md:w-56" aria-label="ผู้มอบหมาย"><option value="all">ผู้มอบหมาย: ทั้งหมด</option></select>
+        <select id="doneTeacher" onchange="renderDone()" class="inp md:w-56" aria-label="ครู"></select>
+      </div>
+      <div id="doneGrid" class="grid min-[900px]:grid-cols-2 gap-4"></div>
+    </section>
   </main>
   <footer class="relative text-xs px-7 pb-6 flex flex-col sm:flex-row justify-between gap-2 max-w-[1080px] mx-auto">
     <span>พัฒนาระบบโดย <b style="color:var(--ink)">นายณัฐพงศ์ บาลไทสงค์</b> | ครู โรงเรียนอนุบาลชุมชนหนองบัวแดง</span>
@@ -681,6 +696,7 @@ async function loadData(silent){
 async function initApp(){
   $('taskDueDate').value=isoLocal(3);
   $('assignerFilter').innerHTML+=ASSIGNERS.map(a=>`<option>${a}</option>`).join('');
+  $('doneAssigner').innerHTML+=ASSIGNERS.map(a=>`<option>${a}</option>`).join('');
   $('urgGrid').innerHTML=Object.entries(URG).map(([k,v],i)=>`<label class="cursor-pointer"><input type="radio" name="urgency" value="${k}" class="peer sr-only" ${i?'':'checked'}><div class="py-2 text-center text-sm font-semibold rounded-xl border peer-checked:text-white" style="border-color:var(--line);--c:${v[1]}">${v[0]}</div></label>`).join('');
   document.addEventListener('change',e=>{if(e.target.name==='urgency')paintUrg()});paintUrg();
   await loadData();
@@ -695,6 +711,8 @@ function fillTeacherFilter(){
   const el=$('teacherFilter'),v=el.value;
   el.innerHTML='<option value="all">ครูผู้รับผิดชอบ: ทั้งหมด</option>'+TEACHERS.map(t=>`<option value="${t.id}">${esc(t.name)}</option>`).join('');
   el.value=TEACHERS.some(t=>t.id===v)?v:'all';
+  const d=$('doneTeacher'),dv=d.value;
+  d.innerHTML=el.innerHTML;d.value=TEACHERS.some(t=>t.id===dv)?dv:'all';
 }
 function fixInitials(t){
   if(t.initials&&/[ก-ฮA-Za-z]/.test(t.initials))return;
@@ -974,12 +992,12 @@ function closeAssign(){$('tab-assign').classList.add('hidden');document.body.sty
 function switchTab(id){
   if(id==='tab-assign'){openAssign();return}
   closeAssign();closeTeacher();closeTask();
-  ['tab-list','tab-dashboard','tab-teachers','tab-my'].forEach(t=>{$(t).classList.toggle('hidden',t!==id);$('nav-'+t).classList.toggle('on',t===id)});
+  ['tab-list','tab-dashboard','tab-teachers','tab-my','tab-done'].forEach(t=>{$(t).classList.toggle('hidden',t!==id);$('nav-'+t).classList.toggle('on',t===id)});
   window.scrollTo({top:0});renderAll();
 }
 function fmtDate(s){if(!s)return'-';const m=['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'],d=new Date(s);return isNaN(d)?s:`${d.getDate()} ${m[d.getMonth()]} ${d.getFullYear()+543}`}
 const cnt=s=>s==='all'?tasks.length:tasks.filter(t=>t.status===s).length;
-function renderAll(){if(tkOpen!=null)renderTaskPop();renderStats();renderTaskList();renderAssignForm();renderTeachersTab();renderMy();renderDashboard();renderSideSum()}
+function renderAll(){if(tkOpen!=null)renderTaskPop();renderStats();renderTaskList();renderAssignForm();renderTeachersTab();renderMy();renderDone();renderDashboard();renderSideSum()}
 function renderSideSum(){
   const n=tasks.length,p=n?Math.round(cnt('completed')/n*100):0;
   const today=new Date();today.setHours(0,0,0,0);
@@ -1134,7 +1152,18 @@ function renderTaskList(){
   });
   $('taskGridContainer').innerHTML=list.length?list.map(taskRow).join(''):`<div class="min-[900px]:col-span-2 card p-10 text-center"><p class="font-bold" style="color:var(--ink)">ไม่พบรายการงาน</p><p class="text-sm mt-1">ลองเปลี่ยนตัวกรอง หรือมอบหมายงานใหม่</p></div>`
   const hid=(filter==='all'&&!q)?tasks.filter(t=>t.status==='completed'&&(a==='all'||t.assigner===a)&&(tv==='all'||t.teacherIds?.includes(tv))).length:0;
-  if(hid)$('taskGridContainer').insertAdjacentHTML('beforeend',`<button type="button" onclick="filter='completed';renderAll()" class="min-[900px]:col-span-2 text-sm py-3 rounded-2xl" style="background:var(--mist);color:var(--blue);font-weight:600">ซ่อนงานที่เสร็จแล้ว ${hid} รายการ · กดเพื่อดู</button>`);
+  if(hid)$('taskGridContainer').insertAdjacentHTML('beforeend',`<button type="button" onclick="switchTab('tab-done')" class="min-[900px]:col-span-2 text-sm py-3 rounded-2xl" style="background:var(--mist);color:var(--blue);font-weight:600">งานที่เสร็จสิ้นแล้ว ${hid} รายการ อยู่ในแท็บ “งานที่เสร็จสิ้น” · กดเพื่อดู</button>`);
+}
+function renderDone(){
+  const q=$('doneSearch').value.trim().toLowerCase(),a=$('doneAssigner').value,tv=$('doneTeacher').value;
+  const all=tasks.filter(t=>t.status==='completed');
+  const list=all.filter(t=>{
+    const names=(t.teacherIds||[]).map(id=>TEACHERS.find(x=>x.id===id)?.name||'').join(' ').toLowerCase();
+    return (a==='all'||t.assigner===a)&&(tv==='all'||t.teacherIds?.includes(tv))&&
+      (!q||t.title.toLowerCase().includes(q)||(t.note||'').toLowerCase().includes(q)||t.assigner.toLowerCase().includes(q)||names.includes(q));
+  });
+  $('doneSub').textContent=`เสร็จสิ้นแล้วทั้งหมด ${all.length} งาน`+(list.length!==all.length?` · แสดง ${list.length} งานตามตัวกรอง`:'');
+  $('doneGrid').innerHTML=list.length?list.map(t=>taskRow(t)).join(''):`<div class="min-[900px]:col-span-2 card p-10 text-center"><p class="font-bold" style="color:var(--ink)">${all.length?'ไม่พบงานที่ตรงกับตัวกรอง':'ยังไม่มีงานที่เสร็จสิ้น'}</p><p class="text-sm mt-1">งานที่เปลี่ยนสถานะเป็น "เสร็จแล้ว" จะมารวมอยู่ที่นี่</p></div>`;
 }
 function changeStatus(id,s){const t=tasks.find(x=>x.id===id);if(!t)return;t.status=s;gs('api_updateStatus',id,s).catch(fail);renderAll();toast(`เปลี่ยนสถานะเป็น "${ST[s].l}" แล้ว`)}
 async function deleteTask(id){const x=tasks.find(t=>t.id===id);if(!x)return;
