@@ -882,7 +882,8 @@ function openFV(v,isPdf){
   return st;
 }
 async function openFile(tid,fid){
-  const f=((tasks.find(x=>x.id===tid)||{}).files||[]).find(x=>x.id===fid)||{},
+  const tk=tasks.find(x=>x.id===tid)||{},
+    f=[...(tk.files||[]),...Object.values(tk.proofs||{}).flat()].find(x=>x.id===fid)||{},
     ext=((f.name||'').split('.').pop()||'').toLowerCase(),
     canPdf=ext==='pdf',canImg=['png','jpg','jpeg','gif','webp'].includes(ext);
   const b=busy('กำลังเตรียมไฟล์…');
@@ -1063,6 +1064,77 @@ async function ackTask(id){
     else fail(e);
   }
 }
+
+/* ===== หลักฐานการทำงาน: ครูส่งรูป / PDF กลับ (t.proofs = {รหัสครู:[{id,name,size,type,at}]}) ===== */
+const MAX_PROOFS=5;
+function sessExpired(e){
+  if(!/เข้าสู่ระบบใหม่/.test(errMsg(e)))return false;
+  setAuth(null);closeTask();setMe(null);
+  swal({icon:'warning',title:'กรุณาใส่ PIN ใหม่',text:'เซสชันหมดอายุ ใส่ PIN แล้วส่งหลักฐานอีกครั้ง'});
+  return true;
+}
+function proofChip(t,f,own){
+  return `<span class="inline-flex items-center gap-1 max-w-full pl-1.5 pr-1 py-1 rounded-lg text-xs" style="background:var(--mist)"><button type="button" onclick="openFile(${t.id},'${f.id}')" class="inline-flex items-center gap-1.5 min-w-0 text-left" title="ดูไฟล์ ${esc(f.name)}">${extTag(f)}<span class="truncate" style="max-width:130px;color:var(--ink)">${esc(f.name)}</span><span class="opacity-60 shrink-0">${fmtSize(f.size)}</span></button>${own?`<button type="button" onclick="removeProof(${t.id},'${f.id}')" aria-label="ลบหลักฐาน" class="w-6 h-6 rounded-full leading-none opacity-60 hover:opacity-100">×</button>`:''}</span>`;
+}
+function proofsHTML(t){
+  const p=t.proofs||{},ids=t.teacherIds||[],mineOpen=tkMine&&tkOpen===t.id&&!!me&&ids.includes(me);
+  const show=mineOpen?[me]:ids;
+  return show.map(id=>{
+    const x=TEACHERS.find(z=>z.id===id);if(!x)return '';
+    const l=p[id]||[],own=mineOpen&&id===me;
+    const chips=l.map(f=>proofChip(t,f,own)).join('');
+    const add=own&&l.length<MAX_PROOFS?`<button type="button" onclick="pickProof(${t.id})" class="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-semibold border" style="border-color:var(--orange);color:#B86E00">📎 ${l.length?'เพิ่มหลักฐาน':'ส่งหลักฐาน (รูป / PDF)'}</button>`:'';
+    const last=l.length?Math.max(...l.map(f=>+f.at||0)):0;
+    const head=own?'':`<div class="flex items-center gap-2 text-xs"><b style="color:${l.length?'var(--ok)':'#F29A1F'}">${l.length?'✓':'⏳'}</b><span class="truncate flex-1">${esc(x.name)}</span><span class="shrink-0">${l.length?esc(fmtDT(last)):'ยังไม่ส่งหลักฐาน'}</span></div>`;
+    return `<div class="grid gap-1.5">${head}${(chips||add)?`<div class="flex flex-wrap gap-1.5">${chips}${add}</div>`:''}</div>`;
+  }).join('')||'-';
+}
+function pickProof(id){
+  const i=document.createElement('input');i.type='file';i.multiple=true;i.accept='image/*,application/pdf,.pdf';
+  i.onchange=()=>sendProofs(id,[...i.files]);i.click();
+}
+/* ย่อรูปจากกล้องมือถือก่อนส่ง (ด้านยาวสุด 1600px, JPEG) ให้ส่งเร็วและไม่เกินโควตา */
+async function shrinkImg(f){
+  if(!/^image\/(jpeg|png|webp)$/i.test(f.type)||f.size<350*1024)return f;
+  try{
+    const bm=await createImageBitmap(f,{imageOrientation:'from-image'}),k=Math.min(1,1600/Math.max(bm.width,bm.height));
+    const cv=document.createElement('canvas');cv.width=Math.round(bm.width*k);cv.height=Math.round(bm.height*k);
+    const cx=cv.getContext('2d');cx.fillStyle='#fff';cx.fillRect(0,0,cv.width,cv.height);cx.drawImage(bm,0,0,cv.width,cv.height);
+    if(bm.close)bm.close();
+    const bl=await new Promise(ok=>cv.toBlob(ok,'image/jpeg',.82));
+    if(!bl||bl.size>=f.size)return f;
+    return new File([bl],(f.name||'photo').replace(/\.[^.]+$/,'')+'.jpg',{type:'image/jpeg'});
+  }catch(e){return f}
+}
+async function sendProofs(id,list){
+  const t=tasks.find(x=>x.id===id);if(!t||!me||!list.length)return;
+  const errs=[];let n=0,expired=false,have=((t.proofs||{})[me]||[]).length;
+  const b=busy('กำลังส่งหลักฐาน…');
+  try{
+    for(const f0 of list){
+      if(have+n>=MAX_PROOFS){errs.push(`ส่งได้สูงสุด ${MAX_PROOFS} ไฟล์ต่องาน`);break}
+      const okType=/^image\//i.test(f0.type)||f0.type==='application/pdf'||/\.(pdf|jpe?g|png|gif|webp|heic|heif)$/i.test(f0.name);
+      if(!okType){errs.push(`${f0.name}: ส่งได้เฉพาะรูปภาพหรือ PDF`);continue}
+      try{
+        b.set(f0.name);
+        const f=await shrinkImg(f0);
+        if(f.size>MAX_FILE){errs.push(`${f0.name} ใหญ่เกิน 10 MB`);continue}
+        t.proofs=await gs('api_uploadProof',id,me,{name:f.name,mime:f.type||'application/octet-stream',data:await toB64(f)},authTok(me));n++;
+      }catch(e){if(/เข้าสู่ระบบใหม่/.test(errMsg(e))){expired=true;break}errs.push(f0.name+': '+errMsg(e))}
+    }
+  }finally{b.done()}
+  if(expired){sessExpired(new Error('เข้าสู่ระบบใหม่'));return}
+  if(n){renderAll();toast(`ส่งหลักฐาน ${n} ไฟล์แล้ว`)}
+  if(errs.length)swal({icon:'warning',title:'ส่งไม่ได้บางไฟล์',text:errs.join('\n')});
+}
+async function removeProof(tid,fid){
+  const t=tasks.find(x=>x.id===tid);if(!t||!me)return;
+  const fm=((t.proofs||{})[me]||[]).find(f=>f.id===fid);
+  if(!await swal({icon:'warning',title:'ลบหลักฐานนี้?',text:fm?fm.name:'',confirmText:'ลบ',cancelText:'ยกเลิก',danger:true}))return;
+  const b=busy('กำลังลบ…');
+  try{t.proofs=await gs('api_deleteProof',tid,me,fid,authTok(me));b.done();renderAll();toast('ลบหลักฐานแล้ว')}
+  catch(e){b.done();if(!sessExpired(e))fail(e)}
+}
 function taskCard(t){
   const noDel=tkMine&&tkOpen===t.id; // มุมมอง "งานของฉัน" ไม่แสดงปุ่มลบงาน
   const needAck=tkMine&&tkOpen===t.id&&!!me&&(t.teacherIds||[]).includes(me)&&!(t.acks||{})[me];
@@ -1091,6 +1163,7 @@ function taskCard(t){
       ${row('ผู้รับผิดชอบ',`<div class="flex items-center gap-2"><div class="flex">${av}</div><span class="truncate text-xs">${nm}</span></div>`)}
       ${row('รับทราบ',`<div class="grid gap-1">${ackHTML(t)}</div>`)}
       ${row('ไฟล์แนบ',filesHTML(t))}
+      ${row('หลักฐาน',proofsHTML(t))}
     </div>
   </div>
   ${needAck?`<div class="px-4 pb-3"><button type="button" class="btn w-full" onclick="ackTask(${t.id})">✓ รับทราบงานนี้</button></div>`:''}
@@ -1125,12 +1198,14 @@ function taskRow(t,mine){
   const ackPill=mine&&me
     ?(ak[me]?'':`<span class="pill" style="background:#F29A1F22;color:#B86E00">รอรับทราบ</span>`)
     :`<span class="pill" style="background:${allAck?'#1FA97A1A':'#F29A1F1A'};color:${allAck?'var(--ok)':'#B86E00'}">${allAck?'✓ ':''}รับทราบ ${nAck}/${ids.length}</span>`;
+  const np=mine&&me?((t.proofs||{})[me]||[]).length:Object.values(t.proofs||{}).reduce((a,l)=>a+(l||[]).length,0),
+    proofPill=np?`<span class="pill" style="background:#3E9BEA1A;color:#1F6FB5">📎 หลักฐาน ${np}</span>`:'';
   const bub='width:40px;height:40px;border-radius:50%;font-size:13px;font-weight:700;display:grid;place-items:center;border:2px solid var(--card);flex-shrink:0';
   const av=ts.slice(0,3).map((x,i)=>`<span title="${esc(x.name)}" style="${bub};color:#fff;margin-left:${i?-12:0}px;${tbg(x)}">${esc(x.initials)}</span>`).join('')+(ts.length>3?`<span style="${bub};background:var(--mist);color:var(--blue);margin-left:-12px">+${ts.length-3}</span>`:'');
   return `<div class="card trw" role="button" tabindex="0" aria-label="ดูรายละเอียด ${esc(t.title)}" onclick="openTask(${t.id}${mine?',true':''})" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openTask(${t.id}${mine?',true':''})}">
   <span class="trw-bar" style="background:${bar}"></span>
   <div class="min-w-0 flex-1">
-    <div class="flex items-center gap-1.5 mb-1.5 flex-wrap"><span class="pill" style="background:${sc.c}1A;color:${sc.c}"><i style="width:7px;height:7px;border-radius:50%;background:${sc.c}"></i>${sc.l}</span><span class="pill" style="background:${u[1]}1A;color:${u[1]}">${u[0]}</span>${ackPill}</div>
+    <div class="flex items-center gap-1.5 mb-1.5 flex-wrap"><span class="pill" style="background:${sc.c}1A;color:${sc.c}"><i style="width:7px;height:7px;border-radius:50%;background:${sc.c}"></i>${sc.l}</span><span class="pill" style="background:${u[1]}1A;color:${u[1]}">${u[0]}</span>${ackPill}${proofPill}</div>
     <h3 class="${done?'line-through opacity-50':''}">${esc(t.title)}</h3>
     <div class="flex items-center justify-between gap-2 mt-2"><span class="text-xs min-w-0">กำหนดส่ง <b style="color:${dc}">${fmtDate(t.dueDate)}${dl}</b></span><div class="flex shrink-0">${av}</div></div>
   </div>
