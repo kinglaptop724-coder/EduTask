@@ -585,7 +585,7 @@ select.inp{appearance:none;-webkit-appearance:none;padding-right:40px;background
             <div><label class="text-sm font-medium block mb-1">กำหนดส่ง <span style="color:#E5484D">*</span></label><input type="date" id="taskDueDate" required class="inp"></div>
             <div><label class="text-sm font-medium block mb-1">ความสำคัญ</label>
               <div class="grid grid-cols-3 gap-2" id="urgGrid"></div></div>
-            <div class="sm:col-span-2"><div class="flex items-center justify-between gap-2 flex-wrap"><label class="text-sm font-medium">ไฟล์แนบ <span class="text-xs font-normal">(ไม่บังคับ • ไม่เกิน 5 ไฟล์ ไฟล์ละไม่เกิน 10 MB)</span></label><button type="button" class="btn2 !py-1.5 !px-4 !text-sm" onclick="$('pendInput').click()">+ แนบไฟล์</button></div><input id="pendInput" type="file" multiple class="hidden" onchange="addPend(this)"><div id="pendList" class="mt-3 grid gap-2"></div></div>
+            <div id="pendBox" class="sm:col-span-2"><div class="flex items-center justify-between gap-2 flex-wrap"><label class="text-sm font-medium">ไฟล์แนบ <span class="text-xs font-normal">(ไม่บังคับ • ไม่เกิน 5 ไฟล์ ไฟล์ละไม่เกิน 10 MB)</span></label><button type="button" class="btn2 !py-1.5 !px-4 !text-sm" onclick="$('pendInput').click()">+ แนบไฟล์</button></div><input id="pendInput" type="file" multiple class="hidden" onchange="addPend(this)"><div id="pendList" class="mt-3 grid gap-2"></div></div>
           </div>
         </div>
         <div class="flex flex-col-reverse sm:flex-row justify-between gap-3">
@@ -672,7 +672,7 @@ const TEACHERS=[];
 const IC={list:`<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h10"/></svg>`,clock:`<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>`,sync:`<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.5-5.8"/><path d="M20 4v5h-5"/></svg>`,check:`<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>`,alert:`<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16.5v.01"/></svg>`};
 const ST={all:{l:'งานทั้งหมด',c:'#2E5FBF',i:IC.list},pending:{l:'รอทำ',c:'#F29A1F',i:IC.clock},in_progress:{l:'กำลังทำ',c:'#3E9BEA',i:IC.sync},completed:{l:'เสร็จแล้ว',c:'#1FA97A',i:IC.check}};
 const URG={normal:['ปกติ','#2E5FBF'],urgent:['ด่วน','#F29A1F'],very_urgent:['ด่วนที่สุด','#E5484D']};
-let seenIds=null,tasks=[],filter='all',asg=ASSIGNERS[0],selT=[],tab3=null;
+let seenIds=null,tasks=[],filter='all',asg=ASSIGNERS[0],selT=[],tab3=null,editId=null;
 const $=id=>document.getElementById(id);
 const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 
@@ -941,8 +941,8 @@ function wzRender(){
   k.slice(0,3).forEach((s,i)=>s.classList.toggle('hidden',i!==wz));
   const L=['ผู้มอบหมายงาน','ครูผู้รับผิดชอบ','รายละเอียด'];
   $('wzSteps').innerHTML=L.map((l,i)=>`<div class="flex items-center gap-2 ${i?'flex-1':''}">${i?`<div class="flex-1 h-0.5 rounded mr-1" style="background:${i<=wz?'var(--blue)':'var(--line)'}"></div>`:''}<span class="flex items-center gap-2"><span style="width:28px;height:28px;border-radius:50%;display:grid;place-items:center;font-size:13px;font-weight:700;flex-shrink:0;${i<wz?'background:var(--blue);color:#fff':i===wz?'background:#FFCB2E;color:#1E3A6E':'background:var(--mist);color:var(--txt)'}">${i<wz?'✓':i+1}</span><span class="text-xs sm:text-sm ${i===wz?'font-bold':'hidden sm:inline'}" style="color:${i===wz?'var(--ink)':'var(--txt)'}">${l}</span></span></div>`).join('');
-  $('wzBack').textContent='ย้อนกลับ';$('wzBack').style.display=wz?'':'none';
-  const n=$('wzNext');n.textContent=wz===2?'บันทึกและมอบหมายงาน':'ถัดไป';n.type=wz===2?'submit':'button';
+  $('wzBack').textContent=editId&&wz===1?'ยกเลิก':'ย้อนกลับ';$('wzBack').style.display=wz?'':'none';
+  const n=$('wzNext');n.textContent=wz===2?(editId?'บันทึกการแก้ไข':'บันทึกและมอบหมายงาน'):'ถัดไป';n.type=wz===2?'submit':'button';
   $('wzRecap').textContent=`จาก ${asg} • ครู ${selT.length} ท่าน`;
   wzLock();
   if(wz===2&&innerWidth>760)setTimeout(()=>$('taskTitle').focus(),60);
@@ -1010,7 +1010,7 @@ async function ensureAsg(){
   return false;
 }
 function wzGo(d){
-  if(d<0){if(wz===0){closeAssign();return}wz--;wzRender();return}
+  if(d<0){if(wz===0||(editId&&wz===1)){closeAssign();return}wz--;wzRender();return}
   if(wz===0){ensureAsg().then(ok=>{if(ok){wz++;wzRender()}});return}
   if(wz===1&&!selT.length)return;
   if(wz===2)return;wz++;wzRender();
@@ -1019,7 +1019,21 @@ function openAssign(){wz=0;wzRender();pend=[];renderPend();
   $('tab-assign').classList.remove('hidden');document.body.style.overflow='hidden';renderAssignForm();
   
 }
-function closeAssign(){$('tab-assign').classList.add('hidden');document.body.style.overflow=''}
+function closeAssign(){$('tab-assign').classList.add('hidden');document.body.style.overflow='';
+  if(editId){editId=null;selT=[];$('taskTitle').value='';$('taskNote').value='';$('taskDueDate').value='';const r=document.querySelector('input[name=urgency]');if(r)r.checked=true;assignMode()}
+}
+/* โหมดแก้ไขงาน: ใช้หน้าต่างเดียวกับมอบหมายงานใหม่ แต่ข้ามขั้นเลือกผู้มอบหมาย (ผู้มอบหมายคงเดิม) และซ่อนไฟล์แนบ */
+function assignMode(){$('assignTtl').innerHTML=editId?'แก้ไข<b>งาน</b>':'มอบหมาย<b>งานใหม่</b>';$('pendBox').classList.toggle('hidden',!!editId)}
+function editTask(id){
+  const t=tasks.find(x=>x.id===id);if(!t)return;
+  closeTask();
+  editId=id;asg=ASG_IDS[t.assigner]?t.assigner:ASSIGNERS[0];
+  selT=(t.teacherIds||[]).filter(i=>TEACHERS.some(x=>x.id===i));
+  $('taskTitle').value=t.title;$('taskNote').value=t.note||'';$('taskDueDate').value=t.dueDate;
+  const r=document.querySelector('input[name=urgency][value="'+t.urgency+'"]');if(r)r.checked=true;
+  pend=[];renderPend();assignMode();wz=1;wzRender();
+  $('tab-assign').classList.remove('hidden');document.body.style.overflow='hidden';renderAssignForm();
+}
 function switchTab(id){
   if(id==='tab-assign'){openAssign();return}
   closeAssign();closeTeacher();closeTask();
@@ -1183,7 +1197,7 @@ function taskCard(t){
   <div class="p-5 flex-1 flex flex-col gap-3">
     <div class="flex items-center justify-between gap-2">
       <span class="pill" style="background:${sc.c}1A;color:${sc.c}"><i style="width:7px;height:7px;border-radius:50%;background:${sc.c}"></i>${sc.l}</span>
-      <div class="flex items-center gap-1.5"><span class="pill" style="background:${u[1]}1A;color:${u[1]}">${u[0]}</span>${noDel?'':`<button onclick="deleteTask(${t.id})" title="ลบงาน" aria-label="ลบงาน" class="w-7 h-7 rounded-full text-lg leading-none hover:bg-[var(--mist)]" style="color:#9AA9C4">×</button>`}</div>
+      <div class="flex items-center gap-1.5"><span class="pill" style="background:${u[1]}1A;color:${u[1]}">${u[0]}</span>${noDel?'':`<button onclick="editTask(${t.id})" title="แก้ไขงาน" aria-label="แก้ไขงาน" class="w-7 h-7 rounded-full text-base leading-none hover:bg-[var(--mist)]" style="color:#9AA9C4">✎</button><button onclick="deleteTask(${t.id})" title="ลบงาน" aria-label="ลบงาน" class="w-7 h-7 rounded-full text-lg leading-none hover:bg-[var(--mist)]" style="color:#9AA9C4">×</button>`}</div>
     </div>
     <h3 class="font-bold text-base ${done?'line-through opacity-50':''}" style="color:var(--ink);${clamp}" title="${esc(t.title)}">${esc(t.title)}</h3>
     <p class="text-sm" style="${clamp};opacity:.85">${esc(t.note)}</p>
@@ -1302,6 +1316,7 @@ async function handleCreateTask(e){
   if(!title){swal({icon:'warning',title:'กรุณากรอกหัวข้องาน',text:'ต้องระบุหัวข้องานก่อนบันทึก'}).then(()=>$('taskTitle').focus());return}
   if(!$('taskDueDate').value){swal({icon:'warning',title:'กรุณาเลือกกำหนดส่ง'}).then(()=>$('taskDueDate').focus());return}
   if(!selT.length){swal({icon:'warning',title:'ยังไม่ได้เลือกครู',text:'กรุณาลงทะเบียนและเลือกครูผู้รับผิดชอบอย่างน้อย 1 ท่าน'});return}
+  if(editId){return saveEdit(title)}
   const aid=asgId(asg);
   if(!asgTok(aid)){wz=0;wzRender();renderAssignForm();swal({icon:'warning',title:'ต้องยืนยันตัวตนก่อน',text:'กด ถัดไป เพื่อใส่ PIN ของ '+asg});return}
   const files=[...pend],b=busy('กำลังบันทึกงาน…'),errs=[];let t;
@@ -1316,6 +1331,20 @@ async function handleCreateTask(e){
   switchTab('tab-list');
   if(errs.length)swal({icon:'warning',title:'มอบหมายงานแล้ว แต่แนบไฟล์ไม่ครบ',text:errs.join('\n')});
   else swal({icon:'success',title:'มอบหมายงานเรียบร้อย',text:title,timer:2200});
+}
+
+async function saveEdit(title){
+  const id=editId,old=tasks.find(t=>t.id===id);if(!old){closeAssign();return}
+  const gone=(old.teacherIds||[]).filter(i=>!selT.includes(i)&&((old.acks||{})[i]||((old.proofs||{})[i]||[]).length));
+  if(gone.length&&!await swal({icon:'warning',title:'เอาครูออกจากงานนี้?',text:`ครู ${gone.length} ท่านที่เอาออกเคยรับทราบหรือส่งหลักฐานไว้แล้ว\nข้อมูลและไฟล์หลักฐานของครูเหล่านั้นจะถูกลบถาวร`,confirmText:'ยืนยัน',cancelText:'กลับไปแก้',danger:true}))return;
+  const body={title,note:$('taskNote').value.trim(),teacherIds:[...selT],dueDate:$('taskDueDate').value,urgency:document.querySelector('input[name=urgency]:checked').value};
+  let r;
+  try{r=await withAsg(old.assigner,tok=>{const b=busy('กำลังบันทึกการแก้ไข…');return gs('api_updateTask',id,body,tok).finally(()=>b.done())})}
+  catch(e){fail(e);return}
+  if(r.cancel)return;
+  Object.assign(old,r.v);
+  closeAssign();renderAll();openTask(id);
+  swal({icon:'success',title:'แก้ไขงานเรียบร้อย',text:title,timer:1800});
 }
 
 let tPop=false,tFlt='all';
