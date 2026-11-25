@@ -556,6 +556,10 @@ select.inp{appearance:none;-webkit-appearance:none;padding-right:40px;background
         <div class="card p-5 lg:col-span-8" id="dashTeachers"></div>
         <div class="card p-5 lg:col-span-5" id="dashUrg"></div>
         <div class="card p-5 lg:col-span-7" id="dashDue"></div>
+        <div class="card p-5 lg:col-span-6" id="dashAsg"></div>
+        <div class="card p-5 lg:col-span-6" id="dashWeek"></div>
+        <div class="card p-5 lg:col-span-5" id="dashAck"></div>
+        <div class="card p-5 lg:col-span-7" id="dashRisk"></div>
       </div>
     </section>
 
@@ -1072,6 +1076,42 @@ function renderDashboard(){
   $('dashUrg').innerHTML=`<p class="font-bold mb-4" style="color:var(--ink)">งานที่ยังไม่เสร็จตามความสำคัญ</p><div class="space-y-4">${Object.entries(URG).map(([k,v])=>{const c=open.filter(t=>t.urgency===k).length;return `<div><div class="flex justify-between text-sm mb-1"><span>${v[0]}</span><b style="color:var(--ink)">${c}</b></div><div class="h-3 rounded-full overflow-hidden" style="background:var(--mist)"><div class="bar h-full rounded-full" style="width:${open.length?c/open.length*100:0}%;background:${v[1]}"></div></div></div>`}).join('')}</div>`;
   const due=[...open].sort((x,y)=>x.dueDate.localeCompare(y.dueDate)).slice(0,5);
   $('dashDue').innerHTML=`<p class="font-bold mb-3" style="color:var(--ink)">งานที่ใกล้ครบกำหนด</p>`+(due.length?`<div class="space-y-2">${due.map(t=>{const tn=(t.teacherIds||[]).map(id=>(TEACHERS.find(x=>x.id===id)||{}).name).filter(Boolean),d=left(t),lbl=d<0?`เลยกำหนด ${-d} วัน`:d===0?'ครบกำหนดวันนี้':`อีก ${d} วัน`,c=d<0?'#E5484D':d<=3?'#F29A1F':'#2E5FBF';return `<div class="flex items-center gap-3 p-3 rounded-xl" style="background:var(--mist)"><div class="flex-1 min-w-0"><p class="text-sm font-semibold truncate" style="color:var(--ink)">${esc(t.title)}</p><p class="text-xs">${fmtDate(t.dueDate)} • ${esc(t.assigner)}</p><p class="text-xs truncate" title="${esc(tn.join(', '))}">👤 ${tn.length?(tn.length===TEACHERS.length&&tn.length>3?`ครูทั้งหมด ${tn.length} ท่าน`:esc(tn.slice(0,2).join(', '))+(tn.length>2?` และอีก ${tn.length-2} ท่าน`:'')):'ไม่พบรายชื่อครู'}</p></div><span class="pill shrink-0" style="background:${c}22;color:${c}">${lbl}</span></div>`}).join('')}</div>`:`<p class="text-sm py-6 text-center">ไม่มีงานค้างแล้ว</p>`);
+  dashExtra(open,left);
+}
+
+/* กราฟเพิ่มเติมของแดชบอร์ด: งานตามผู้มอบหมาย | ภาระงานที่จะครบกำหนดรายสัปดาห์ | ความคืบหน้ารับทราบ/หลักฐาน/เสร็จ | ครูที่ควรติดตาม */
+function dashExtra(open,left){
+  const ttl=(t,sub)=>`<p class="font-bold" style="color:var(--ink)">${t}</p>${sub?`<p class="text-xs mb-4">${sub}</p>`:'<div class="mb-4"></div>'}`;
+  const none=m=>`<p class="text-sm py-6 text-center">${m}</p>`;
+  const seg=(v,mx,c)=>v?`<div class="bar" style="width:${v/mx*100}%;background:${c}"></div>`:'';
+  const pill=(t,c)=>`<span class="pill" style="background:${c}1A;color:${c}">${t}</span>`;
+  // 1) งานตามผู้มอบหมาย
+  const names=[...new Set([...ASSIGNERS,...tasks.map(t=>t.assigner)])];
+  const ar=names.map(a=>{const m=tasks.filter(t=>t.assigner===a),o=m.filter(t=>t.status!=='completed');
+    return{a,c:m.filter(t=>t.status==='completed').length,p:m.filter(t=>t.status==='in_progress').length,w:m.filter(t=>t.status==='pending').length,all:m.length,late:o.filter(t=>left(t)<0).length}}).filter(r=>r.all).sort((x,y)=>y.all-x.all);
+  const amx=Math.max(1,...ar.map(r=>r.all));
+  $('dashAsg').innerHTML=ttl('งานแยกตามผู้มอบหมาย','จำนวนงานที่แต่ละตำแหน่งมอบหมาย แยกตามสถานะ')+(ar.length
+    ?`<div class="space-y-3.5">${ar.map(r=>`<div><div class="flex items-center justify-between gap-2 text-sm mb-1"><span class="truncate" style="color:var(--ink)">${esc(r.a)}</span><span class="flex items-center gap-2 shrink-0">${r.late?pill('เลยกำหนด '+r.late,'#E5484D'):''}<b style="color:var(--ink)">${r.all}</b></span></div><div class="flex h-3 rounded-full overflow-hidden" style="background:var(--mist)">${seg(r.c,amx,'#1FA97A')}${seg(r.p,amx,'#3E9BEA')}${seg(r.w,amx,'#F29A1F')}</div></div>`).join('')}</div>
+      <div class="flex gap-3 text-xs mt-4">${['completed','in_progress','pending'].map(k=>`<span class="flex items-center gap-1"><i style="width:8px;height:8px;border-radius:50%;background:${ST[k].c}"></i>${ST[k].l}</span>`).join('')}</div>`
+    :none('ยังไม่มีข้อมูลงาน'));
+  // 2) ภาระงานที่จะครบกำหนดรายสัปดาห์ (เฉพาะงานที่ยังไม่เสร็จ)
+  const bk=[0,0,0,0,0,0];open.forEach(t=>{const d=left(t);bk[d<0?0:Math.min(5,Math.floor(d/7)+1)]++});
+  const lb=['เลยกำหนด','ใน 1 สป.','ใน 2 สป.','ใน 3 สป.','ใน 4 สป.','เกิน 4 สป.'],cl=['#E5484D','#F29A1F','#3E9BEA','#3E9BEA','#3E9BEA','#9AA9C4'],bmx=Math.max(1,...bk);
+  $('dashWeek').innerHTML=ttl('งานที่จะครบกำหนดรายสัปดาห์','เฉพาะงานที่ยังไม่เสร็จ นับจากวันนี้ ใช้วางแผนช่วงที่งานกระจุกตัว')+(open.length
+    ?`<div class="flex items-end gap-2" style="height:150px">${bk.map((v,i)=>`<div class="flex-1 flex flex-col items-center justify-end gap-1" style="height:100%"><b class="text-xs" style="color:var(--ink)">${v}</b><div style="width:100%;max-width:46px;height:${v/bmx*78}%;min-height:${v?4:0}px;background:${cl[i]};border-radius:8px 8px 0 0"></div></div>`).join('')}</div><div class="flex gap-2 mt-2">${lb.map(l=>`<span class="flex-1 text-center text-[11px]">${l}</span>`).join('')}</div>`
+    :none('ไม่มีงานค้างแล้ว'));
+  // 3) ความคืบหน้า (นับเป็นคู่ งาน × ครู)
+  let P=0,A=0,E=0,D=0;tasks.forEach(t=>{const ids=t.teacherIds||[];P+=ids.length;A+=ids.filter(i=>(t.acks||{})[i]).length;E+=ids.filter(i=>((t.proofs||{})[i]||[]).length).length;if(t.status==='completed')D+=ids.length});
+  const pr=[['รับทราบงานแล้ว',A,'#3E9BEA'],['ส่งหลักฐานแล้ว',E,'#F29A1F'],['งานเสร็จแล้ว',D,'#1FA97A']];
+  $('dashAck').innerHTML=ttl('ความคืบหน้าการดำเนินงาน','นับเป็นรายครูต่อรายงาน (งาน × ครู) ทั้งหมด '+P+' รายการ')+(P
+    ?`<div class="space-y-4">${pr.map(([l,v,c])=>{const pc=Math.round(v/P*100);return `<div><div class="flex justify-between text-sm mb-1"><span>${l}</span><span><b style="color:var(--ink)">${v}</b>/${P} · ${pc}%</span></div><div class="h-3 rounded-full overflow-hidden" style="background:var(--mist)"><div class="bar h-full rounded-full" style="width:${pc}%;background:${c}"></div></div></div>`}).join('')}</div>`
+    :none('ยังไม่มีข้อมูลงาน'));
+  // 4) ครูที่ควรติดตาม: เลยกำหนด / ยังไม่รับทราบ (เฉพาะงานที่ยังไม่เสร็จ)
+  const rk=TEACHERS.map(t=>{const m=open.filter(j=>j.teacherIds?.includes(t.id));return{t,late:m.filter(j=>left(j)<0).length,noAck:m.filter(j=>!(j.acks||{})[t.id]).length,open:m.length}})
+    .filter(r=>r.late||r.noAck).sort((x,y)=>y.late-x.late||y.noAck-x.noAck||y.open-x.open).slice(0,5);
+  $('dashRisk').innerHTML=ttl('ครูที่ควรติดตาม','เรียงตามจำนวนงานที่เลยกำหนด แล้วตามด้วยงานที่ยังไม่รับทราบ (5 อันดับแรก)')+(rk.length
+    ?`<div class="space-y-2">${rk.map(r=>`<div class="flex items-center gap-3 p-3 rounded-xl" style="background:var(--mist)"><span class="tile !w-9 !h-9 !text-xs font-bold" style="${tbgFlat(r.t)}">${esc(r.t.initials)}</span><div class="flex-1 min-w-0"><p class="text-sm font-semibold truncate" style="color:var(--ink)">${esc(r.t.name)}</p><p class="text-xs">งานค้าง ${r.open} งาน</p></div><div class="flex flex-wrap justify-end gap-1.5 shrink-0">${r.late?pill('เลยกำหนด '+r.late,'#E5484D'):''}${r.noAck?pill('ยังไม่รับทราบ '+r.noAck,'#B86E00'):''}</div></div>`).join('')}</div>`
+    :none('ไม่มีครูที่ต้องติดตาม 🎉'));
 }
 
 function renderStats(){
